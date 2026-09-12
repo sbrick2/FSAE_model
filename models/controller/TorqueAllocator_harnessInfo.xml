@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HarnessInformation>
+  <Harness>
+    <P Name="Name">TorqueAllocator_draft_harness</P>
+    <P Name="Description"/>
+    <P Name="CreatedBy">Xu Dingyi</P>
+    <P Name="CreatedOn">Sun Aug 02 19:39:50 2026</P>
+    <P Name="ModifiedBy">Xu Dingyi</P>
+    <P Name="LastSaved">Sun Aug 02 19:39:56 2026</P>
+    <P Name="Owner">bd</P>
+    <P Name="OwnerType">BD_HARNESS</P>
+    <P Name="OwnerPath">.</P>
+    <P Name="Directory"/>
+    <P Name="FileName">TorqueAllocator_draft_harness.slx</P>
+    <P Name="SavedVersion">26.1</P>
+    <P Name="HarnessUUID">3ec9cc41-0242-4455-ac64-89e0e66e8ea8</P>
+    <P Name="HarnessConnectionsMap">0,1,2,3,4,5,6,7,8,9,10,11,12,13,14|0,1,2,3,4,5,6,7,8,9,10,11|0,0,0,0||</P>
+    <P Name="VerificationMode">0</P>
+    <P Name="HarnessOwnerCheckSum">0,0,0,0</P>
+    <P Name="RebuildOnOpen">false</P>
+    <P Name="RebuildModelData">false</P>
+    <P Name="Graphical">true</P>
+    <P Name="DriveFcnCallWithTS">true</P>
+    <P Name="ScheduleInitTermReset">false</P>
+    <P Name="AutoShapeInputs">false</P>
+    <P Name="SLDVCompatible">no</P>
+    <P Name="SynchronizationMode">1</P>
+    <P Name="IsImported">false</P>
+    <P Name="PostRebuildCB"/>
+    <P Name="IsCodeContext">false</P>
+    <P Name="SchedulerBlock">0</P>
+    <P Name="SourceTypeString">Signal Editor</P>
+    <P Name="SinkTypeString">Outport</P>
+    <P Name="CustomSourcePath"/>
+    <P Name="CustomSinkPath"/>
+    <P Name="BlockSIDs">2|35|0|0|0|0|0</P>
+    <P Name="OpenGraphs"/>
+    <P Name="ExistingBuildFolder"/>
+    <P Name="FunctionInterfaceName"/>
+    <P Name="SysArchSUTModel"/>
+  </Harness>
+  <Harness>
+    <P Name="Name">TorqueAllocator_final_harness</P>
+    <P Name="Description"/>
+    <P Name="CreatedBy">Xu Dingyi</P>
+    <P Name="CreatedOn">Sun Aug 02 19:40:05 2026</P>
+    <P Name="ModifiedBy">Xu Dingyi</P>
+    <P Name="LastSaved">Sun Aug 02 19:40:12 2026</P>
+    <P Name="Owner">bd</P>
+    <P Name="OwnerType">BD_HARNESS</P>
+    <P Name="OwnerPath">.</P>
+    <P Name="Directory"/>
+    <P Name="FileName">TorqueAllocator_final_harness.slx</P>
+    <P Name="SavedVersion">26.1</P>
+    <P Name="HarnessUUID">e4adc414-20ed-4a03-b32a-385886459bf4</P>
+    <P Name="HarnessConnectionsMap">0,1,2,3,4,5,6,7,8,9,10,11,12,13,14|0,1,2,3,4,5,6,7,8,9,10,11|0,0,0,0||</P>
+    <P Name="VerificationMode">0</P>
+    <P Name="HarnessOwnerCheckSum">0,0,0,0</P>
+    <P Name="RebuildOnOpen">false</P>
+    <P Name="RebuildModelData">false</P>
+    <P Name="Graphical">false</P>
+    <P Name="DriveFcnCallWithTS">true</P>
+    <P Name="ScheduleInitTermReset">false</P>
+    <P Name="AutoShapeInputs">false</P>
+    <P Name="SLDVCompatible">no</P>
+    <P Name="SynchronizationMode">1</P>
+    <P Name="IsImported">false</P>
+    <P Name="PostRebuildCB"/>
+    <P Name="IsCodeContext">false</P>
+    <P Name="SchedulerBlock">0</P>
+    <P Name="SourceTypeString">Signal Editor</P>
+    <P Name="SinkTypeString">Outport</P>
+    <P Name="CustomSourcePath"/>
+    <P Name="CustomSinkPath"/>
+    <P Name="BlockSIDs">2|50|0|0|0|0|0</P>
+    <P Name="OpenGraphs"/>
+    <P Name="ExistingBuildFolder"/>
+    <P Name="FunctionInterfaceName"/>
+    <P Name="SysArchSUTModel"/>
+  </Harness>
+  <ModelMetadata>
+    <P Name="ModelUUID">ca809d1b-76b4-4b27-a666-bce263a6a619</P>
+    <P Name="OwnerBDName">TorqueAllocator</P>
+  </ModelMetadata>
+</HarnessInformation>

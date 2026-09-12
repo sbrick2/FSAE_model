@@ -1,0 +1,26 @@
+# 自动检测文本文件并规范化换行符
+* text=auto
+
+# MATLAB / Simulink 二进制文件（防止 Git 换行符转换导致模型/数据损坏）
+*.slx binary
+*.mat binary
+*.fig binary
+*.p binary
+*.slxc binary
+*.mex* binary
+*.sldd binary
+*.mldatx binary
+*.slmx binary
+
+# CAD 与三维模型二进制文件
+*.stl binary
+*.step binary
+*.stp binary
+
+# 数据与文档二进制文件
+*.xlsx binary
+*.xls binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HarnessInformation>
+  <Harness>
+    <P Name="Name">YawController_draft_harness</P>
+    <P Name="Description"/>
+    <P Name="CreatedBy">Xu Dingyi</P>
+    <P Name="CreatedOn">Fri Jul 31 00:51:51 2026</P>
+    <P Name="ModifiedBy">Xu Dingyi</P>
+    <P Name="LastSaved">Fri Jul 31 00:52:02 2026</P>
+    <P Name="Owner">bd</P>
+    <P Name="OwnerType">BD_HARNESS</P>
+    <P Name="OwnerPath">.</P>
+    <P Name="Directory"/>
+    <P Name="FileName">YawController_draft_harness.slx</P>
+    <P Name="SavedVersion">26.1</P>
+    <P Name="HarnessUUID">ad085b6f-f583-4c00-8f83-e2ebd30b4a59</P>
+    <P Name="HarnessConnectionsMap">0,1,2,3,4|0,1,2,3,4|0,0,0,0||</P>
+    <P Name="VerificationMode">0</P>
+    <P Name="HarnessOwnerCheckSum">0,0,0,0</P>
+    <P Name="RebuildOnOpen">false</P>
+    <P Name="RebuildModelData">false</P>
+    <P Name="Graphical">true</P>
+    <P Name="DriveFcnCallWithTS">true</P>
+    <P Name="ScheduleInitTermReset">false</P>
+    <P Name="AutoShapeInputs">false</P>
+    <P Name="SLDVCompatible">no</P>
+    <P Name="SynchronizationMode">1</P>
+    <P Name="IsImported">false</P>
+    <P Name="PostRebuildCB"/>
+    <P Name="IsCodeContext">false</P>
+    <P Name="SchedulerBlock">0</P>
+    <P Name="SourceTypeString">Signal Editor</P>
+    <P Name="SinkTypeString">Outport</P>
+    <P Name="CustomSourcePath"/>
+    <P Name="CustomSinkPath"/>
+    <P Name="BlockSIDs">2|15|0|0|0|0|0</P>
+    <P Name="OpenGraphs"/>
+    <P Name="ExistingBuildFolder"/>
+    <P Name="FunctionInterfaceName"/>
+    <P Name="SysArchSUTModel"/>
+  </Harness>
+  <Harness>
+    <P Name="Name">YawController_final_harness</P>
+    <P Name="Description"/>
+    <P Name="CreatedBy">Xu Dingyi</P>
+    <P Name="CreatedOn">Fri Jul 31 19:17:54 2026</P>
+    <P Name="ModifiedBy">Xu Dingyi</P>
+    <P Name="LastSaved">Fri Jul 31 19:18:10 2026</P>
+    <P Name="Owner">bd</P>
+    <P Name="OwnerType">BD_HARNESS</P>
+    <P Name="OwnerPath">.</P>
+    <P Name="Directory"/>
+    <P Name="FileName">YawController_final_harness.slx</P>
+    <P Name="SavedVersion">26.1</P>
+    <P Name="HarnessUUID">9af6e311-f8d6-4c53-9eb1-f73e8af8eca4</P>
+    <P Name="HarnessConnectionsMap">0,1,2,3,4|0,1,2,3,4|0,0,0,0||</P>
+    <P Name="VerificationMode">0</P>
+    <P Name="HarnessOwnerCheckSum">0,0,0,0</P>
+    <P Name="RebuildOnOpen">false</P>
+    <P Name="RebuildModelData">false</P>
+    <P Name="Graphical">false</P>
+    <P Name="DriveFcnCallWithTS">true</P>
+    <P Name="ScheduleInitTermReset">false</P>
+    <P Name="AutoShapeInputs">false</P>
+    <P Name="SLDVCompatible">no</P>
+    <P Name="SynchronizationMode">1</P>
+    <P Name="IsImported">false</P>
+    <P Name="PostRebuildCB"/>
+    <P Name="IsCodeContext">false</P>
+    <P Name="SchedulerBlock">0</P>
+    <P Name="SourceTypeString">Signal Editor</P>
+    <P Name="SinkTypeString">Outport</P>
+    <P Name="CustomSourcePath"/>
+    <P Name="CustomSinkPath"/>
+    <P Name="BlockSIDs">2|20|0|0|0|0|0</P>
+    <P Name="OpenGraphs"/>
+    <P Name="ExistingBuildFolder"/>
+    <P Name="FunctionInterfaceName"/>
+    <P Name="SysArchSUTModel"/>
+  </Harness>
+  <ModelMetadata>
+    <P Name="ModelUUID">2b168387-a34a-4f94-8f7b-7bfe0bbf7f12</P>
+    <P Name="OwnerBDName">YawController</P>
+  </ModelMetadata>
+</HarnessInformation>

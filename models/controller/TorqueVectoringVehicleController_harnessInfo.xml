@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HarnessInformation>
+  <Harness>
+    <P Name="Name">TorqueVectoringVehicleController_draft_harness</P>
+    <P Name="Description"/>
+    <P Name="CreatedBy">Xu Dingyi</P>
+    <P Name="CreatedOn">Wed Aug 12 16:37:20 2026</P>
+    <P Name="ModifiedBy">Xu Dingyi</P>
+    <P Name="LastSaved">Wed Aug 12 16:37:31 2026</P>
+    <P Name="Owner">bd</P>
+    <P Name="OwnerType">BD_HARNESS</P>
+    <P Name="OwnerPath">.</P>
+    <P Name="Directory"/>
+    <P Name="FileName">TorqueVectoringVehicleController_draft_harness.slx</P>
+    <P Name="SavedVersion">26.1</P>
+    <P Name="HarnessUUID">69aa62a5-1410-4883-b186-0554770b330e</P>
+    <P Name="HarnessConnectionsMap">0,1,2|0,1|0,0,0,0||</P>
+    <P Name="VerificationMode">0</P>
+    <P Name="HarnessOwnerCheckSum">0,0,0,0</P>
+    <P Name="RebuildOnOpen">false</P>
+    <P Name="RebuildModelData">false</P>
+    <P Name="Graphical">true</P>
+    <P Name="DriveFcnCallWithTS">true</P>
+    <P Name="ScheduleInitTermReset">false</P>
+    <P Name="AutoShapeInputs">false</P>
+    <P Name="SLDVCompatible">no</P>
+    <P Name="SynchronizationMode">1</P>
+    <P Name="IsImported">false</P>
+    <P Name="PostRebuildCB"/>
+    <P Name="IsCodeContext">false</P>
+    <P Name="SchedulerBlock">0</P>
+    <P Name="SourceTypeString">Signal Editor</P>
+    <P Name="SinkTypeString">Outport</P>
+    <P Name="CustomSourcePath"/>
+    <P Name="CustomSinkPath"/>
+    <P Name="BlockSIDs">2|11|0|0|0|0|0</P>
+    <P Name="OpenGraphs"/>
+    <P Name="ExistingBuildFolder"/>
+    <P Name="FunctionInterfaceName"/>
+    <P Name="SysArchSUTModel"/>
+  </Harness>
+  <Harness>
+    <P Name="Name">TorqueVectoringVehicleController_final_harness</P>
+    <P Name="Description"/>
+    <P Name="CreatedBy">Xu Dingyi</P>
+    <P Name="CreatedOn">Wed Aug 12 16:41:17 2026</P>
+    <P Name="ModifiedBy">Xu Dingyi</P>
+    <P Name="LastSaved">Wed Aug 12 16:41:21 2026</P>
+    <P Name="Owner">bd</P>
+    <P Name="OwnerType">BD_HARNESS</P>
+    <P Name="OwnerPath">.</P>
+    <P Name="Directory"/>
+    <P Name="FileName">TorqueVectoringVehicleController_final_harness.slx</P>
+    <P Name="SavedVersion">26.1</P>
+    <P Name="HarnessUUID">efba833f-c363-476c-a482-aa7298f7edb0</P>
+    <P Name="HarnessConnectionsMap">0,1,2|0,1|0,0,0,0||</P>
+    <P Name="VerificationMode">0</P>
+    <P Name="HarnessOwnerCheckSum">0,0,0,0</P>
+    <P Name="RebuildOnOpen">false</P>
+    <P Name="RebuildModelData">false</P>
+    <P Name="Graphical">false</P>
+    <P Name="DriveFcnCallWithTS">true</P>
+    <P Name="ScheduleInitTermReset">false</P>
+    <P Name="AutoShapeInputs">false</P>
+    <P Name="SLDVCompatible">no</P>
+    <P Name="SynchronizationMode">1</P>
+    <P Name="IsImported">false</P>
+    <P Name="PostRebuildCB"/>
+    <P Name="IsCodeContext">false</P>
+    <P Name="SchedulerBlock">0</P>
+    <P Name="SourceTypeString">Signal Editor</P>
+    <P Name="SinkTypeString">Outport</P>
+    <P Name="CustomSourcePath"/>
+    <P Name="CustomSinkPath"/>
+    <P Name="BlockSIDs">2|17|0|0|0|0|0</P>
+    <P Name="OpenGraphs"/>
+    <P Name="ExistingBuildFolder"/>
+    <P Name="FunctionInterfaceName"/>
+    <P Name="SysArchSUTModel"/>
+  </Harness>
+  <ModelMetadata>
+    <P Name="ModelUUID">bec5b568-f1a3-4ab8-a004-206f8e304b8a</P>
+    <P Name="OwnerBDName">TorqueVectoringVehicleController</P>
+  </ModelMetadata>
+</HarnessInformation>

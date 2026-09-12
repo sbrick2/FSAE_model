@@ -1,0 +1,46 @@
+# Git 白名单：默认不纳入任何文件
+*
+!*/
+
+# 仅保留 Simulink 模型、MATLAB 源代码和 Markdown 文档
+!*.slx
+!*.m
+!*.md
+!*.prj
+!*.sldd
+!*.xml
+!*.slmx
+!/LICENSE
+!tests/**/*.feature
+
+# 保留项目级 Codex 编排配置；AGENTS.md 已由 Markdown 白名单包含
+!/.codex/
+!/.codex/config.toml
+
+# 即使扩展名被允许，以下目录仍属于生成缓存或本地产物
+/cache/
+/codegen/
+/slprj/
+/results/
+/coverage/
+/test-results/
+/sck/
+/.satk/
+/.codex_docx_qa/
+
+# 验证结果只保存在各测试域的 results/ 中，不进入版本控制；保留说明文件
+/tests/**/results/*
+!/tests/**/results/README.md
+
+# 车队内部数据仅保留在本地；允许随功能目录维护 Markdown 说明
+/data/**
+!/data/
+!/data/**/
+!/data/**/*.md
+
+# MATLAB Project 生成的项目资源元数据仅保留在本地
+/resources/
+
+# 保留 Git 规则本身，确保配置可随仓库共享
+!.gitignore
+!.gitattributes
