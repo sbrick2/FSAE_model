@@ -160,11 +160,6 @@ classdef FSAESimulationApp < handle
             cfg.Output.SaveFinalTrackView = ...
                 logical(app.SaveFigureCheckBox.Value);
 
-            if cfg.Driver.Model == "adaptive_autocross" && ...
-                    cfg.Vehicle.DynamicsModel ~= "7DOF"
-                error("FSAE:App:IncompatibleDriver", ...
-                    "adaptive_autocross 驾驶员仅支持 7DOF。");
-            end
         end
 
         function cfg = buildQuasiStaticConfig(app)
@@ -505,14 +500,6 @@ classdef FSAESimulationApp < handle
             app.StatusLabel.Layout.Row = 14;
             app.StatusLabel.Layout.Column = [1, 2];
 
-            noteLabel = uilabel(configGrid, ...
-                "Text", "首次 GGV 生成及标准求解可能耗时较长。" + ...
-                newline + "仿真进度同时显示在 MATLAB 命令窗口。", ...
-                "WordWrap", "on", ...
-                "VerticalAlignment", "top", ...
-                "FontColor", [0.42, 0.45, 0.50]);
-            noteLabel.Layout.Row = 15;
-            noteLabel.Layout.Column = [1, 2];
 
             app.createResultArea(rootGrid);
             app.createQuasiStaticModule(app.QuasiStaticModuleTab);
@@ -1863,7 +1850,7 @@ classdef FSAESimulationApp < handle
             label.Layout.Column = 1;
         end
 
-        function synchronizeConfiguration(app, source)
+        function synchronizeConfiguration(app, ~)
             eventName = string(app.EventDropDown.Value);
             if eventName == "endurance"
                 app.LapsField.Enable = "on";
@@ -1872,19 +1859,6 @@ classdef FSAESimulationApp < handle
                 app.LapsField.Enable = "off";
             end
 
-            dynamics = string(app.DynamicsDropDown.Value);
-            driver = string(app.DriverDropDown.Value);
-            if source == "dynamics" && dynamics == "10DOF" && ...
-                    driver == "adaptive_autocross"
-                app.DriverDropDown.Value = 'reference_speed';
-                app.StatusLabel.Text = ...
-                    '10DOF 已自动切换为 reference_speed 驾驶员';
-            elseif source == "driver" && driver == "adaptive_autocross" && ...
-                    dynamics == "10DOF"
-                app.DynamicsDropDown.Value = '7DOF';
-                app.StatusLabel.Text = ...
-                    'adaptive_autocross 已自动切换为 7DOF';
-            end
         end
 
         function runSimulation(app)

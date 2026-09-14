@@ -11,6 +11,8 @@ arguments
     options.ReferenceDecelerationLimit (1, 1) double {mustBePositive} = 4.0
     options.EntryStraightLength (1, 1) double {mustBePositive} = 20.0
     options.ExitStraightLength (1, 1) double {mustBePositive} = 20.0
+    options.UseSavedData (1, 1) logical = true
+    options.DataFolder (1, 1) string = ""
 end
 
 projectRoot = string(fileparts(fileparts(fileparts(mfilename("fullpath")))));
@@ -20,32 +22,16 @@ innerDiameter = 15.25;
 outerDiameter = 21.25;
 circleCenterSeparation = 18.25;
 centerlineRadius = circleCenterSeparation / 2;
-
-entryY = linspace(-options.EntryStraightLength, 0, 1001)';
-entryX = zeros(size(entryY));
-
-% At the common tangent point, increasing Y enters the course. Decreasing
-% angle therefore produces the required two clockwise right-hand laps.
-rightAngle = linspace(pi, -3 * pi, 5001)';
-rightLoopX = centerlineRadius + centerlineRadius * cos(rightAngle);
-rightLoopY = centerlineRadius * sin(rightAngle);
-
-% Increasing angle produces two counterclockwise left-hand laps while
-% retaining the same tangent direction through the crossover.
-leftAngle = linspace(0, 4 * pi, 5001)';
-leftLoopX = -centerlineRadius + centerlineRadius * cos(leftAngle);
-leftLoopY = centerlineRadius * sin(leftAngle);
-
-exitY = linspace(0, options.ExitStraightLength, 1001)';
-exitX = zeros(size(exitY));
-
-% Remove duplicate samples at the three segment junctions.
-x = [entryX(1:end-1); rightLoopX(1:end-1); ...
-    leftLoopX(1:end-1); exitX];
-y = [entryY(1:end-1); rightLoopY(1:end-1); ...
-    leftLoopY(1:end-1); exitY];
-track = makePathTrackingParametricTrack(x, y, options.SampleDistance, 3.0, ...
-    "FSAE_Skidpad_CompleteRun", false);
+parameterSignature = sprintf( ...
+    "sample=%.17g;entry=%.17g;exit=%.17g;radius=%.17g;laneWidth=3", ...
+    options.SampleDistance, options.EntryStraightLength, ...
+    options.ExitStraightLength, centerlineRadius);
+[track, dataInfo] = loadOrCreatePathTrackingTrackData( ...
+    "skidpad", parameterSignature, ...
+    @() buildSkidpadTrack(options.SampleDistance, ...
+        options.EntryStraightLength, options.ExitStraightLength, ...
+        centerlineRadius), ...
+    UseSavedData = options.UseSavedData, DataFolder = options.DataFolder);
 curvatureMagnitude = max(abs(track.Curvature), 1.0e-4);
 curvatureLimitedSpeed = sqrt( ...
     options.LateralAccelerationLimit ./ curvatureMagnitude);
@@ -72,6 +58,7 @@ track.RunSequence = "Entry -> Right x2 -> Left x2 -> Exit";
 track.LateralAccelerationLimit = options.LateralAccelerationLimit;
 track.ReferenceAccelerationLimit = options.ReferenceAccelerationLimit;
 track.ReferenceDecelerationLimit = options.ReferenceDecelerationLimit;
+track.TrackData = dataInfo;
 track.WidthSource = ...
     "Formula SAE Rules 2026 D.10.1.1 and D.10.1.3: 3.0 m path";
 track.StraightLengthSource = ...
@@ -90,6 +77,36 @@ scenario = struct( ...
     "2026 FSAE complete skidpad run: entry, right x2, left x2, exit.", ...
     "ReferenceSpeedSource", ...
     "curvature-limited target with acceleration/deceleration envelope; not a performance claim");
+end
+
+function track = buildSkidpadTrack( ...
+        sampleDistance, entryStraightLength, exitStraightLength, ...
+        centerlineRadius)
+entryY = linspace(-entryStraightLength, 0, 1001)';
+entryX = zeros(size(entryY));
+
+% At the common tangent point, increasing Y enters the course. Decreasing
+% angle therefore produces the required two clockwise right-hand laps.
+rightAngle = linspace(pi, -3 * pi, 5001)';
+rightLoopX = centerlineRadius + centerlineRadius * cos(rightAngle);
+rightLoopY = centerlineRadius * sin(rightAngle);
+
+% Increasing angle produces two counterclockwise left-hand laps while
+% retaining the same tangent direction through the crossover.
+leftAngle = linspace(0, 4 * pi, 5001)';
+leftLoopX = -centerlineRadius + centerlineRadius * cos(leftAngle);
+leftLoopY = centerlineRadius * sin(leftAngle);
+
+exitY = linspace(0, exitStraightLength, 1001)';
+exitX = zeros(size(exitY));
+
+% Remove duplicate samples at the three segment junctions.
+x = [entryX(1:end-1); rightLoopX(1:end-1); ...
+    leftLoopX(1:end-1); exitX];
+y = [entryY(1:end-1); rightLoopY(1:end-1); ...
+    leftLoopY(1:end-1); exitY];
+track = makePathTrackingParametricTrack(x, y, sampleDistance, 3.0, ...
+    "FSAE_Skidpad_CompleteRun", false);
 end
 
 function speed = applyOpenSpeedEnvelope( ...

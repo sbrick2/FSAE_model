@@ -1,7 +1,7 @@
 # FSAE 圈速仿真与结果绘图分析脚本规格说明
 
-> 状态：已实施；支持 7DOF/10DOF 选择
-> 更新日期：2026-08-05
+> 状态：已实施；支持 7DOF/10DOF 与两类驾驶员独立选择
+> 更新日期：2026-09-14
 > 目标环境：MATLAB / Simulink R2026a  
 > 适用项目：`FSAE_Simulation.prj`
 
@@ -20,7 +20,7 @@
 
 | 类型 | 当前项目资产 | 用途 |
 |---|---|---|
-| 顶层闭环模型 | `FSAE_TorqueVectoring_ClosedLoop.slx` / `FSAE_Vehicle10DOF_ClosedLoop.slx` / `FSAE_AdaptiveAutocross_7DOF.slx` | 参考速度 7DOF/10DOF 与独立自适应 7DOF 顶层 |
+| 顶层闭环模型 | `FSAE_TorqueVectoring_ClosedLoop.slx` / `FSAE_Vehicle10DOF_ClosedLoop.slx` / `FSAE_AdaptiveAutocross_7DOF.slx` / `FSAE_AdaptiveAutocross_10DOF.slx` | 参考速度与自适应驾驶员各自支持 7DOF/10DOF 顶层 |
 | 车辆模型 | `VehiclePlant.slx` / `VehiclePlant10DOF.slx` | 可选平面轮荷或动态悬架轮荷 Plant |
 | 驾驶员模型 | `TorqueVectoringPathTrackingDriver.slx` / `AdaptiveAutocrossDriver.slx` | GGV 参考速度跟踪，或直接使用几何且不读取参考速度 |
 | 控制器模型 | `TorqueVectoringVehicleController.slx` | 两类驾驶员共用；TV 由驾驶员配置显式选择 |
@@ -198,7 +198,7 @@ cfg.Output.Overwrite = false;
 | `Track.NumberOfLaps` | double | `2` | 正整数 | 仅耐久赛生效 |
 | `Track.ImagePath` | string | `""` | 空或有效文件 | 非默认采样距离时可能需要 |
 | `Vehicle.TireModel` | string | `"mf62"` | `mf62/ttc_map` | 时域轮胎与 GGV 使用同一模式 |
-| `Vehicle.DynamicsModel` | string | `"7DOF"` | `7DOF/10DOF` | 路由 TorqueVectoring/VehiclePlant 或 Vehicle10DOF/VehiclePlant10DOF |
+| `Vehicle.DynamicsModel` | string | `"7DOF"` | `7DOF/10DOF` | 与驾驶员模式共同路由对应顶层及 VehiclePlant/VehiclePlant10DOF |
 | `SpeedPlanner.MotorSpeedUtilization` | double | `0.95` | `(0,1]` | 电机机械最高车速利用率 |
 | `SpeedPlanner.SpeedStep` | double | `3.0` | `>0` m/s | GGV 速度网格间隔 |
 | `SpeedPlanner.ConstraintScale` | double | `0.90` | `(0,1]` | GGV 约束使用比例 |

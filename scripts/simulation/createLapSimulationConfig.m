@@ -7,6 +7,8 @@ cfg.Track.Name = "autocross";
 cfg.Track.SampleDistance = 0.5;
 cfg.Track.NumberOfLaps = 1;
 cfg.Track.ImagePath = "";
+cfg.Track.UseSavedData = true;
+cfg.Track.DataFolder = "";
 
 cfg.Vehicle.TireModel = "mf62";
 cfg.Vehicle.DynamicsModel = "7DOF";

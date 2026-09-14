@@ -23,10 +23,7 @@ if isfield(cfg.Driver, "Model")
     driverModel = lower(string(cfg.Driver.Model));
 end
 if driverModel == "adaptive_autocross"
-    assert(selection.Name == "7DOF", ...
-        "FSAE:AAD:Requires7DOF", ...
-        "The adaptive autocross driver is currently integrated only with 7DOF.");
-    selection.TopModel = "FSAE_AdaptiveAutocross_7DOF";
+    selection.TopModel = "FSAE_AdaptiveAutocross_" + selection.Name;
     selection.DriverModel = "AdaptiveAutocrossDriver";
 else
     selection.DriverModel = "TorqueVectoringPathTrackingDriver";

@@ -4,23 +4,35 @@ function scenario = createPathTrackingAccelerationScenario(options)
 arguments
     options.TargetSpeed (1, 1) double {mustBeNonnegative} = 30.0
     options.SampleDistance (1, 1) double {mustBePositive} = 0.5
+    options.UseSavedData (1, 1) logical = true
+    options.DataFolder (1, 1) string = ""
 end
 
 projectRoot = string(fileparts(fileparts(fileparts(mfilename("fullpath")))));
 addpath(fullfile(projectRoot, "scripts", "track"));
 
-x = (0:options.SampleDistance:75)';
-y = zeros(size(x));
-track = makePathTrackingParametricTrack(x, y, options.SampleDistance, 3.0, ...
-    "Acceleration75m", false);
+parameterSignature = sprintf("length=75;sample=%.17g;laneWidth=3", ...
+    options.SampleDistance);
+[track, dataInfo] = loadOrCreatePathTrackingTrackData( ...
+    "acceleration", parameterSignature, ...
+    @() buildAccelerationTrack(options.SampleDistance), ...
+    UseSavedData = options.UseSavedData, DataFolder = options.DataFolder);
 track.ReferenceSpeed(:) = options.TargetSpeed;
 track.LeftHalfWidth(:) = 1.5;
 track.RightHalfWidth(:) = 1.5;
 track.WidthSource = "temporary 3 m lane placeholder; acceleration width is not supplied";
+track.TrackData = dataInfo;
 
 scenario = makeScenario("PathTracking-ACCELERATION-75M", track, 6.0, 1);
 scenario.EventDescription = "75 m straight acceleration through the timing line.";
 scenario.ReferenceSpeedSource = "temporary constant target; not a performance claim";
+end
+
+function track = buildAccelerationTrack(sampleDistance)
+x = (0:sampleDistance:75)';
+y = zeros(size(x));
+track = makePathTrackingParametricTrack(x, y, sampleDistance, 3.0, ...
+    "Acceleration75m", false);
 end
 
 function scenario = makeScenario(id, track, stopTime, laps)

@@ -137,8 +137,9 @@ run(fullfile(project.RootFolder, "simulation", "time_domain_closed_loop", ...
 - `cfg.Visualization.Enabled`：仿真完成后是否显示最终轨迹图；
 - `cfg.Output.RunName`：本次运行名称。
 
-`adaptive_autocross` 路由到独立的
-`FSAE_AdaptiveAutocross_7DOF/AdaptiveAutocrossDriver`，只支持 7DOF。驾驶员直接
+`adaptive_autocross` 按整车自由度路由到独立的
+`FSAE_AdaptiveAutocross_7DOF` 或 `FSAE_AdaptiveAutocross_10DOF`，两者共用
+`AdaptiveAutocrossDriver`。驾驶员直接
 使用赛道几何和传感器，在线扫描曲率、制动可达性和四轮外缘边界净空；它不读取
 `Track.ReferenceSpeed`，该字段保持全零仅用于兼容结果 Bus。包络最小净空、
 最大越界、计数和比例会写入 MAT/JSON，最终门槛是全程包络零越界。
@@ -149,7 +150,7 @@ run(fullfile(project.RootFolder, "simulation", "time_domain_closed_loop", ...
 `SpeedPlanner.Reference*` 最高速度、最大加速、规划制动、横向加速度和安全系数
 取交集，并继续受驾驶员实际加速/制动/最高车速限幅，保证参考曲线可由闭环实现。
 该组参数不再继承 `adaptive_autocross` 的全局降速裕度。参考速度模式同样执行四轮
-包络零越界资格检查。两种模式都会把驾驶员、自由度、
+包络零越界资格检查。两种模式和两种自由度组合都会把驾驶员、自由度、
 顶层模型和 Plant 写入运行配置。详细算法和限制见
 [`models/driver/Adaptive_Autocross_Driver.md`](../models/driver/Adaptive_Autocross_Driver.md)。
 

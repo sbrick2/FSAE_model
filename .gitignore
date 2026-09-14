@@ -13,6 +13,10 @@
 !/LICENSE
 !tests/**/*.feature
 
+# 正式赛道数据按赛道名保存在项目根目录，可随源码版本管理
+!/trackdata/
+!/trackdata/*.mat
+
 # 保留项目级 Codex 编排配置；AGENTS.md 已由 Markdown 白名单包含
 !/.codex/
 !/.codex/config.toml

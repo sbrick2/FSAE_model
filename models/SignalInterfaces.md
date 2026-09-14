@@ -32,7 +32,8 @@
 | `Sensor` | In | `Bus: SensorBus` | 5 ms 暂定 | `y` | 位姿、速度和 IMU 测量 |
 | `DriverCommand` | Out | `Bus: DriverCommandBus` | 10 ms | 输出 | 与现有 TorqueVectoring 控制器兼容的转向、加减速及功能开关 |
 
-该模型只在 `FSAE_AdaptiveAutocross_7DOF.slx` 中使用，不改变原
+该模型在 `FSAE_AdaptiveAutocross_7DOF.slx` 和
+`FSAE_AdaptiveAutocross_10DOF.slx` 中使用，不改变原
 `DriverModel/TorqueVectoringPathTrackingDriver` 的 `TrackReferenceBus` 合同。
 
 ### 2.2 `VehicleController.slx`

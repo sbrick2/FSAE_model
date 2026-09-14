@@ -1,13 +1,14 @@
 # GGV 约束的 Adaptive Autocross 驾驶员
 
 > 状态：闭合赛道 standard 资格圈通过；开放赛道完赛与零越界验证通过<br>
-> 更新日期：2026-08-23
+> 更新日期：2026-09-14
 
 ## 1. 模型边界
 
 `AdaptiveAutocrossDriver.slx` 直接接收 `PathTrackingTrackDataBus` 和 `SensorBus`，输出既有
-`DriverCommandBus`。独立顶层 `FSAE_AdaptiveAutocross_7DOF.slx` 将其连接到
-TorqueVectoring 控制器、传感器和 7DOF Plant，不改变原 TorqueVectoring/Vehicle10DOF 闭环模型。
+`DriverCommandBus`。独立顶层 `FSAE_AdaptiveAutocross_7DOF.slx` 和
+`FSAE_AdaptiveAutocross_10DOF.slx` 将其连接到 TorqueVectoring 控制器、传感器以及
+对应的 7DOF/10DOF Plant，不改变原 reference-speed 闭环模型。
 
 与旧实现不同，adaptive 模式会读取 `TrackData.ReferenceSpeed`。该信号由原始
 GGV、驾驶员纵横向请求能力、尖弯曲率保护及前/后向传播生成，是不可超越的能力

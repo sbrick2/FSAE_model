@@ -192,11 +192,14 @@ report = runVehicle10DOFVerification( ...
 
 ```matlab
 cfg.Vehicle.DynamicsModel = "7DOF";   % 或 "10DOF"
+cfg.Driver.Model = "adaptive_autocross"; % 或 "reference_speed"
 ```
 
-`7DOF` 使用 `FSAE_TorqueVectoring_ClosedLoop/VehiclePlant`，`10DOF` 使用
-`FSAE_Vehicle10DOF_ClosedLoop/VehiclePlant10DOF`。两者共用 TorqueVectoring 驾驶员和控制器，入口固定
-`TorqueVectoringEnableTV=false`，所以自由度对比不会同时引入 TV 策略差异。结果中的
+`reference_speed` 使用 `FSAE_TorqueVectoring_ClosedLoop` 或
+`FSAE_Vehicle10DOF_ClosedLoop`；`adaptive_autocross` 使用
+`FSAE_AdaptiveAutocross_7DOF` 或 `FSAE_AdaptiveAutocross_10DOF`。
+四种组合共用 TorqueVectoring 控制器；7DOF 使用 `VehiclePlant`，10DOF 使用
+`VehiclePlant10DOF`。结果中的
 `Config.Vehicle` 会记录 `DynamicsModel`、`TopModel`、`PlantModel` 和 `CoreModel`。
 
 ## 5. 生成三维 GGV 图

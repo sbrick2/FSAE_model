@@ -18,7 +18,7 @@
 %   四轮顺序固定为 [FL, FR, RL, RR]。
 %
 %   配置结构分组与主要字段：
-%     Track       - Name、SampleDistance、NumberOfLaps、ImagePath
+%     Track       - Name、SampleDistance、NumberOfLaps、ImagePath、UseSavedData、DataFolder
 %     Vehicle     - TireModel（mf62/ttc_map）、DynamicsModel（7DOF/10DOF）
 %     SpeedPlanner- MotorSpeedUtilization、SpeedStep、ConstraintScale、
 %                   LateralPointCount、EnvelopePointCount、PassCount、
@@ -52,8 +52,14 @@ cfg.Track.SampleDistance = 0.5;
 % 耐久赛圈数；仅 endurance 使用，必须为正整数
 cfg.Track.NumberOfLaps = 1;
 
-% 赛道图片路径；空字符串表示优先使用项目已有 CSV
+% 赛道图片路径；空字符串表示使用项目内置 FSEC 耐久赛道原图
 cfg.Track.ImagePath = "";
+
+% 保存并复用 trackdata/<赛道名>.mat；几何配置变化时更新对应数据文件
+cfg.Track.UseSavedData = true;
+
+% 空字符串表示保存到 <项目>/trackdata；也可指定其他赛道数据目录
+cfg.Track.DataFolder = "";
 
 % 轮胎模型，可选："mf62" / "ttc_map"；GGV 规划暂不支持 simple
 cfg.Vehicle.TireModel = "mf62";
@@ -223,6 +229,16 @@ end
 
 parameters = readLapVehicleParameters(projectRoot, cfg.Vehicle.DynamicsModel);
 scenario = createLapScenario(cfg);
+if isfield(scenario.Track, "TrackData") && ...
+        scenario.Track.TrackData.Enabled
+    if scenario.Track.TrackData.Loaded
+        dataAction = "已加载";
+    else
+        dataAction = "已生成并保存";
+    end
+    fprintf("%s赛道数据：%s\n", ...
+        dataAction, scenario.Track.TrackData.File);
+end
 if cfg.Driver.Model == "adaptive_autocross"
     racingLineDriver = cfg.Driver;
     racingLineDriver.CGToFrontAxle = ...
@@ -619,11 +635,8 @@ if ~isscalar(cfg.Driver.Model) || ...
         "Driver.Model 必须为 reference_speed 或 adaptive_autocross。");
 end
 if cfg.Driver.Model == "adaptive_autocross"
-    if cfg.Vehicle.DynamicsModel ~= "7DOF"
-        error("FSAE:AAD:Requires7DOF", ...
-            "adaptive_autocross 驾驶员当前仅接入 7DOF 模型。");
-    end
-    cfg.Vehicle.TopModel = "FSAE_AdaptiveAutocross_7DOF";
+    cfg.Vehicle.TopModel = ...
+        "FSAE_AdaptiveAutocross_" + cfg.Vehicle.DynamicsModel;
 else
     cfg.SpeedPlanner = validateSpeedPlannerConfig( ...
         cfg.SpeedPlanner, cfg.Vehicle.TireModel);

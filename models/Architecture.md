@@ -117,7 +117,9 @@ VehiclePlant.slx
 
 轮胎—车辆和电机—逆变器属于紧耦合边界，接口冻结后仍需由同一工作包或明确同步点协调。
 
-Vehicle10DOF 采用隔离集成文件 `VehiclePlant10DOF.slx` 和 `FSAE_Vehicle10DOF_ClosedLoop.slx`，
+Vehicle10DOF 采用隔离集成文件 `VehiclePlant10DOF.slx`，并分别由
+`FSAE_Vehicle10DOF_ClosedLoop.slx` 和 `FSAE_AdaptiveAutocross_10DOF.slx`
+接入 reference-speed 与 adaptive-autocross 驾驶员，
 尚未把生产 `VehiclePlant.slx` 改成运行时 Variant。Vehicle10DOF Plant 中
 `Vehicle10DOF` 的动态轮荷直接驱动轮胎；旧 `LoadTransferModel` 只保留为
 诊断对比，其输出全部终止。这样可以在实车校准关闭前继续保留 TorqueVectoring/7DOF 基线。

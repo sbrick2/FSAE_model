@@ -187,24 +187,29 @@ classdef FSAESimulationAppTest < matlab.uitest.TestCase
                 {'auto', 'auto', 'auto', 'auto', 'auto', '1x'});
         end
 
-        function testTenDofSelectsReferenceDriver(testCase)
+        function testTenDofKeepsAdaptiveDriver(testCase)
             testCase.chooseComponent( testCase.App.ModuleTabGroup, "时域闭环");
             testCase.chooseComponent( testCase.App.DynamicsDropDown, "10DOF");
             drawnow;
 
             testCase.verifyEqual( ...
-                string(testCase.App.DriverDropDown.Value), "reference_speed");
+                string(testCase.App.DriverDropDown.Value), "adaptive_autocross");
+            cfg = testCase.App.buildRunConfig();
+            testCase.verifyEqual(cfg.Vehicle.DynamicsModel, "10DOF");
+            testCase.verifyEqual(cfg.Driver.Model, "adaptive_autocross");
         end
 
-        function testAdaptiveDriverSelectsSevenDof(testCase)
+        function testAdaptiveDriverKeepsTenDof(testCase)
             testCase.chooseComponent( testCase.App.ModuleTabGroup, "时域闭环");
             testCase.chooseComponent( testCase.App.DynamicsDropDown, "10DOF");
+            testCase.chooseComponent( testCase.App.DriverDropDown, ...
+                "reference_speed");
             testCase.chooseComponent( testCase.App.DriverDropDown, ...
                 "adaptive_autocross");
             drawnow;
 
             testCase.verifyEqual( ...
-                string(testCase.App.DynamicsDropDown.Value), "7DOF");
+                string(testCase.App.DynamicsDropDown.Value), "10DOF");
         end
 
         function testLoadsExistingResult(testCase)

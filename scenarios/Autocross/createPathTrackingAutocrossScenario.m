@@ -11,6 +11,10 @@ arguments
     options.ReferenceAccelerationLimit (1, 1) double {mustBePositive} = 3.0
     options.ReferenceDecelerationLimit (1, 1) double {mustBePositive} = 4.0
     options.ImagePath (1, 1) string = ""
+    options.UseSavedData (1, 1) logical = true
+    options.DataFolder (1, 1) string = ""
+    options.TrackDataName (1, 1) string {mustBeMember( ...
+        options.TrackDataName, ["autocross", "endurance"])} = "autocross"
 end
 
 projectRoot = string(fileparts(fileparts(fileparts(mfilename("fullpath")))));
@@ -18,14 +22,16 @@ addpath(fullfile(projectRoot, "scripts", "track"));
 if strlength(options.ImagePath) == 0
     options.ImagePath = fullfile(projectRoot, "scenarios", "Endurance", ...
         "assets", "2024_fsec_endurance_track.png");
-    track = extractFsecEnduranceTrack(options.ImagePath, ...
-        SampleDistance = options.SampleDistance, ...
-        TotalLength = 1000.0, LaneWidth = 3.0);
+    extractionProfile = "fsec_endurance";
 else
-    track = extractTrackFromImage(options.ImagePath, ...
-        SampleDistance = options.SampleDistance, TotalLength = 1000.0, LaneWidth = 3.0);
+    extractionProfile = "generic";
 end
-track = orientPathTrackingClosedTrack(track, "counterclockwise");
+[track, dataInfo] = loadOrCreatePathTrackingImageTrack( ...
+        options.TrackDataName, options.ImagePath, ...
+        SampleDistance = options.SampleDistance, ...
+        ExtractionProfile = extractionProfile, ...
+        UseSavedData = options.UseSavedData, DataFolder = options.DataFolder);
+track.TrackData = dataInfo;
 curvatureMagnitude = max(abs(track.Curvature), 1.0e-4);
 curvatureLimitedSpeed = sqrt(options.LateralAccelerationLimit ./ curvatureMagnitude);
 track.ReferenceSpeed(:) = applyClosedSpeedEnvelope( ...
