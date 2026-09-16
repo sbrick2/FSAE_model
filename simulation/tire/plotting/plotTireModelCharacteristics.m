@@ -6,6 +6,7 @@
 
 % Profile：[] 读取 VehicleData.sldd 当前选择；也可填写数据库 Profile 名称，
 % 例如 "Round9_43075_R20_Rim7"，或直接填写一个 TireModel Profile 结构体。
+
 tireCfg.Profile = [];
 
 % 模型可选 "MF62" 或 "TTCMap"

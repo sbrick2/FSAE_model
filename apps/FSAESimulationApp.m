@@ -49,15 +49,17 @@ classdef FSAESimulationApp < handle
         QuasiSweepParameter1StopField
         QuasiSweepParameter1StepField
         QuasiSweepParameter1UnitLabel
+        QuasiSweepParameter1PointCountLabel
         QuasiSweepParameter2DropDown
         QuasiSweepParameter2StartField
         QuasiSweepParameter2StopField
         QuasiSweepParameter2StepField
         QuasiSweepParameter2UnitLabel
+        QuasiSweepParameter2PointCountLabel
         QuasiSweepCaseCountLabel
         QuasiSweepProgressGauge
         QuasiSweepProgressLabel
-        QuasiSweepPreviewTable
+        QuasiSweepResultAxes
         QuasiLogTextArea
         QuasiTabGroup
         QuasiOverviewTab
@@ -279,6 +281,80 @@ classdef FSAESimulationApp < handle
         function catalog = listVehicleParameterCatalog(app)
             %LISTVEHICLEPARAMETERCATALOG 返回车辆参数调整页的完整目录。
             catalog = app.VehicleParameterCatalog;
+        end
+
+        function displayQuasiStaticSweepResults(app, results, scanConfig)
+            %DISPLAYQUASISTATICSWEEPRESULTS 在 GUI 中显示本次参数扫描结果。
+            assert(isstruct(results) && ~isempty(results), ...
+                "FSAE:App:EmptySweepResult", "参数扫描没有返回结果。");
+            requiredFields = {'Success', 'LapTime', ...
+                'Parameter1Value', 'Parameter2Value'};
+            assert(all(isfield(results, requiredFields)), ...
+                "FSAE:App:InvalidSweepResult", ...
+                "参数扫描结果缺少绘图所需字段。");
+            assert(isstruct(scanConfig) && all(isfield(scanConfig, ...
+                {'Mode', 'Event', 'Parameter1', 'Parameter2'})), ...
+                "FSAE:App:InvalidSweepConfig", ...
+                "参数扫描配置缺少绘图所需字段。");
+
+            mode = lower(string(scanConfig.Mode));
+            parameter1 = string(scanConfig.Parameter1);
+            parameter2 = string(scanConfig.Parameter2);
+            p1 = double([results.Parameter1Value]).';
+            p2 = double([results.Parameter2Value]).';
+            lapTime = double([results.LapTime]).';
+            valid = logical([results.Success]).' & ...
+                isfinite(p1) & isfinite(lapTime);
+            if mode == "double"
+                valid = valid & isfinite(p2);
+            end
+            assert(any(valid), "FSAE:App:NoSweepPlotResult", ...
+                "参数扫描没有可绘制的成功工况。");
+
+            cla(app.QuasiSweepResultAxes);
+            axis(app.QuasiSweepResultAxes, "normal");
+            colorbar(app.QuasiSweepResultAxes, "off");
+
+            if mode == "single"
+                [parameterValues, order] = sort(p1(valid));
+                eventTimes = lapTime(valid);
+                plot(app.QuasiSweepResultAxes, parameterValues, ...
+                    eventTimes(order), "-o", "LineWidth", 1.2);
+                xlabel(app.QuasiSweepResultAxes, parameter1, ...
+                    "Interpreter", "none");
+                ylabel(app.QuasiSweepResultAxes, "Event time (s)");
+            else
+                parameter1Values = unique(p1(valid), "sorted");
+                parameter2Values = unique(p2(valid), "sorted");
+                [~, row] = ismember(p2(valid), parameter2Values);
+                [~, column] = ismember(p1(valid), parameter1Values);
+                lapTimeGrid = accumarray([row(:), column(:)], ...
+                    lapTime(valid), ...
+                    [numel(parameter2Values), numel(parameter1Values)], ...
+                    @min, NaN);
+                imagesc(app.QuasiSweepResultAxes, parameter1Values, ...
+                    parameter2Values, lapTimeGrid);
+                set(app.QuasiSweepResultAxes, "YDir", "normal");
+                sweepColorbar = colorbar(app.QuasiSweepResultAxes);
+                sweepColorbar.Label.String = "Event time (s)";
+                xlabel(app.QuasiSweepResultAxes, parameter1, ...
+                    "Interpreter", "none");
+                ylabel(app.QuasiSweepResultAxes, parameter2, ...
+                    "Interpreter", "none");
+            end
+            grid(app.QuasiSweepResultAxes, "on");
+            box(app.QuasiSweepResultAxes, "on");
+            title(app.QuasiSweepResultAxes, ...
+                "准静态参数扫描：" + string(scanConfig.Event), ...
+                "Interpreter", "none");
+
+            bestLapTime = min(lapTime(valid));
+            app.QuasiSweepProgressLabel.Text = char(sprintf( ...
+                '结果图已生成：成功 %d / %d，最佳圈时 %.3f s', ...
+                nnz(valid), numel(results), bestLapTime));
+            app.QuasiTabGroup.SelectedTab = app.QuasiSweepTab;
+            app.appendQuasiLog('本次参数扫描结果已显示在参数扫描页。');
+            drawnow;
         end
 
         function changes = buildVehicleParameterChanges(app)
@@ -910,13 +986,17 @@ classdef FSAESimulationApp < handle
                 "Limits", [0, 100], "Value", 0);
             app.QuasiSweepProgressGauge.Layout.Row = 2;
 
-            app.QuasiSweepPreviewTable = uitable(sweepGrid, ...
-                "ColumnName", {'参数', '字段路径', '单位', '起点', ...
-                    '终点', '步长', '点数'}, ...
-                "ColumnEditable", false, ...
-                "ColumnWidth", {'auto', 'auto', 'auto', 'auto', ...
-                    'auto', 'auto', '1x'});
-            app.QuasiSweepPreviewTable.Layout.Row = 5;
+            resultPanel = uipanel(sweepGrid, ...
+                "Title", "扫描结果", "FontWeight", "bold", ...
+                "BackgroundColor", [1, 1, 1]);
+            resultPanel.Layout.Row = 5;
+            resultGrid = uigridlayout(resultPanel, [1, 1]);
+            resultGrid.RowHeight = {'1x'};
+            resultGrid.ColumnWidth = {'1x'};
+            resultGrid.Padding = [8, 8, 8, 8];
+            app.QuasiSweepResultAxes = uiaxes(resultGrid);
+            grid(app.QuasiSweepResultAxes, "on");
+            title(app.QuasiSweepResultAxes, "扫描完成后在此显示结果");
 
             app.applyQuasiSweepParameterDefaults(1);
             app.applyQuasiSweepParameterDefaults(2);
@@ -1182,17 +1262,16 @@ classdef FSAESimulationApp < handle
                 "quasi_static", "simulation", "runLapTimeParameterSweep.m");
             try
                 run(scriptPath);
+                app.displayQuasiStaticSweepResults(results, scanConfig);
                 if ~isempty(summaryFigure) && isgraphics(summaryFigure, "figure")
                     close(summaryFigure);
                 end
-                app.QuasiAnalysisDropDown.Value = '参数扫描圈时';
                 if cfg.SaveResults
-                    app.renderQuasiAnalysis();
-                    app.QuasiTabGroup.SelectedTab = app.QuasiToolsTab;
                     app.QuasiStatusLabel.Text = ...
-                        '参数扫描完成，结果已显示在工具与分析页。';
+                        '参数扫描完成，结果已显示在参数扫描页。';
                 else
-                    app.QuasiStatusLabel.Text = '参数扫描完成（未保存结果）。';
+                    app.QuasiStatusLabel.Text = ...
+                        '参数扫描完成（未保存），结果已显示在参数扫描页。';
                 end
                 app.appendQuasiLog('参数扫描完成。');
             catch exception
@@ -1511,6 +1590,14 @@ classdef FSAESimulationApp < handle
             parameterDropDown.Layout.Row = 1;
             parameterDropDown.Layout.Column = [1, 3];
 
+            pointCountLabel = uilabel(gridLayout, ...
+                "Text", "点数：—", ...
+                "HorizontalAlignment", "center", ...
+                "FontWeight", "bold", ...
+                "FontColor", [0.10, 0.36, 0.56]);
+            pointCountLabel.Layout.Row = 4;
+            pointCountLabel.Layout.Column = 3;
+
             headers = ["起点", "终点", "步长"];
             for column = 1:3
                 header = uilabel(gridLayout, ...
@@ -1542,7 +1629,7 @@ classdef FSAESimulationApp < handle
                 "HorizontalAlignment", "center", ...
                 "FontColor", [0.26, 0.31, 0.37]);
             unitLabel.Layout.Row = 4;
-            unitLabel.Layout.Column = [1, 3];
+            unitLabel.Layout.Column = [1, 2];
 
             if index == 1
                 app.QuasiSweepParameter1DropDown = parameterDropDown;
@@ -1550,12 +1637,14 @@ classdef FSAESimulationApp < handle
                 app.QuasiSweepParameter1StopField = stopField;
                 app.QuasiSweepParameter1StepField = stepField;
                 app.QuasiSweepParameter1UnitLabel = unitLabel;
+                app.QuasiSweepParameter1PointCountLabel = pointCountLabel;
             else
                 app.QuasiSweepParameter2DropDown = parameterDropDown;
                 app.QuasiSweepParameter2StartField = startField;
                 app.QuasiSweepParameter2StopField = stopField;
                 app.QuasiSweepParameter2StepField = stepField;
                 app.QuasiSweepParameter2UnitLabel = unitLabel;
+                app.QuasiSweepParameter2PointCountLabel = pointCountLabel;
             end
         end
 
@@ -1607,21 +1696,21 @@ classdef FSAESimulationApp < handle
                 cfg = app.buildQuasiStaticSweepConfig();
                 values1 = createSweepValues(cfg.Parameter1Start, ...
                     cfg.Parameter1Stop, cfg.Parameter1Step);
-                preview = { ...
-                    '参数 1', char(cfg.Parameter1Path), ...
-                    char(erase(cfg.Parameter1Unit, "单位：")), ...
-                    cfg.Parameter1Start, cfg.Parameter1Stop, ...
-                    cfg.Parameter1Step, numel(values1)};
+                app.QuasiSweepParameter1PointCountLabel.Text = ...
+                    char(sprintf("点数：%d", numel(values1)));
                 if isDouble
                     values2 = createSweepValues(cfg.Parameter2Start, ...
                         cfg.Parameter2Stop, cfg.Parameter2Step);
-                    preview(end + 1, :) = { ...
-                        '参数 2', char(cfg.Parameter2Path), ...
-                        char(erase(cfg.Parameter2Unit, "单位：")), ...
-                        cfg.Parameter2Start, cfg.Parameter2Stop, ...
-                        cfg.Parameter2Step, numel(values2)};
+                    app.QuasiSweepParameter2PointCountLabel.Text = ...
+                        char(sprintf("点数：%d", numel(values2)));
+                    app.QuasiSweepParameter2PointCountLabel.FontColor = ...
+                        [0.10, 0.36, 0.56];
+                else
+                    app.QuasiSweepParameter2PointCountLabel.Text = ...
+                        '点数：未启用';
+                    app.QuasiSweepParameter2PointCountLabel.FontColor = ...
+                        [0.48, 0.51, 0.56];
                 end
-                app.QuasiSweepPreviewTable.Data = preview;
                 app.QuasiSweepCaseCountLabel.Text = char(sprintf( ...
                     "预计工况数：%d", cfg.CaseCount));
                 app.QuasiSweepCaseCountLabel.FontColor = [0.10, 0.36, 0.56];
@@ -1629,7 +1718,8 @@ classdef FSAESimulationApp < handle
                     app.QuasiSweepRunButton.Enable = "on";
                 end
             catch exception
-                app.QuasiSweepPreviewTable.Data = cell(0, 7);
+                app.QuasiSweepParameter1PointCountLabel.Text = '点数：—';
+                app.QuasiSweepParameter2PointCountLabel.Text = '点数：—';
                 app.QuasiSweepCaseCountLabel.Text = char( ...
                     "配置无效：" + string(exception.message));
                 app.QuasiSweepCaseCountLabel.FontColor = [0.72, 0.16, 0.12];
