@@ -405,6 +405,28 @@ classdef TrackScenarioTest < matlab.unittest.TestCase
             testCase.verifyLessThan(state.EventDistance, ...
                 scenario.Track.SampleDistance);
         end
+
+        function testClosedTrackWithJitterDoesNotCompleteEarly(testCase)
+            scenario = createPathTrackingAutocrossScenario(SampleDistance = 0.5);
+            sampleCount = numel(scenario.Track.X);
+            % Simulate vehicle trajectory with forward-and-backward discrete jitter
+            jitteredIndices = zeros(1, 3 * (sampleCount - 2));
+            writePos = 1;
+            for i = 1:sampleCount - 2
+                jitteredIndices(writePos:writePos + 2) = [i, max(1, i - 1), i];
+                writePos = writePos + 3;
+            end
+            [state, completedEarly] = replayTrack(scenario, jitteredIndices, struct);
+            testCase.verifyFalse(completedEarly, ...
+                "Closed track completed prematurely due to phantom distance accumulation from jitter.");
+            testCase.verifyLessThan(state.EventDistance, scenario.Track.Length);
+
+            % Complete the lap across the finish line back to index 1
+            [state, completedAtEnd] = replayTrack(scenario, [sampleCount - 1, sampleCount, 1], state);
+            testCase.verifyTrue(completedAtEnd);
+            testCase.verifyEqual(state.EventDistance, scenario.Track.Length, ...
+                AbsTol = scenario.Track.SampleDistance);
+        end
     end
 end
 

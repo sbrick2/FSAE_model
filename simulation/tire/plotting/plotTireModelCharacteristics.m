@@ -10,7 +10,7 @@
 tireCfg.Profile = [];
 
 % 模型可选 "MF62" 或 "TTCMap"
-tireCfg.Model = "MF62";
+tireCfg.Model = "TTCMap";
 
 % 法向载荷，单位 N；[] 表示参考轮荷的 50%/75%/100%/125%/150%
 tireCfg.NormalLoads = [];

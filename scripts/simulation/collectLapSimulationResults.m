@@ -279,14 +279,10 @@ for index = 1:sampleCount
     end
 end
 
-if isempty(result.Track.PathS)
-    result.Track.PathS = projectedS;
-else
-    pathSForProjection = result.Track.PathS;
-    invalid = ~isfinite(pathSForProjection);
-    pathSForProjection(invalid) = projectedS(invalid);
-    result.Track.PathS = pathSForProjection;
+if ~isempty(result.Track.PathS)
+    result.Track.ReportedPathS = result.Track.PathS;
 end
+result.Track.PathS = projectedS;
 if isempty(result.Track.Curvature)
     result.Track.Curvature = projectedCurvature;
 else
@@ -360,13 +356,11 @@ for index = first + 1:numel(pathS)
     elseif isClosed && delta > 0.5 * trackLength
         delta = delta - trackLength;
     end
-    % 赛事进度定义为累计向前里程。路径投影在自交点或车辆倒退时可能
-    % 短暂减小，不能让累计里程和 0–1 进度变成负数。
-    delta = max(delta, 0);
     unwrapped(index) = unwrapped(previous) + delta;
 end
 eventDistance = unwrapped - unwrapped(first);
-eventDistance = max(eventDistance, 0);
+% 赛事进度在显示或指标时应为非负累计前向进度，使用累积最大值保证单调性，避免微小波动造成虚增里程
+eventDistance = max(cummax(eventDistance), 0);
 totalLength = max(trackLength * double(targetLaps), eps);
 progress = min(1, eventDistance / totalLength);
 lapIndex = floor(max(eventDistance, 0) / max(trackLength, eps)) + 1;
@@ -465,8 +459,14 @@ targetDistance = double(scenario.Track.Length);
 if scenario.Track.IsClosed
     targetDistance = targetDistance * double(scenario.NumberOfLaps);
 end
-finishIndex = find(double(result.Track.EventDistance(:)) >= ...
-    targetDistance, 1, "first");
+
+gateCrossingIndex = findFinishGateCrossingSample(result, scenario);
+if ~isempty(gateCrossingIndex)
+    finishIndex = gateCrossingIndex;
+else
+    finishIndex = find(double(result.Track.EventDistance(:)) >= ...
+        targetDistance, 1, "first");
+end
 if isempty(finishIndex) || finishIndex >= sampleCount
     return
 end
@@ -497,6 +497,71 @@ end
 subscripts = repmat({':'}, 1, ndims(value));
 subscripts{1} = 1:finishIndex;
 value = value(subscripts{:});
+end
+
+function finishIndex = findFinishGateCrossingSample(result, scenario)
+finishIndex = [];
+track = scenario.Track;
+requiredTrackFields = ["X", "Y", "Length", "LeftHalfWidth", "RightHalfWidth"];
+if ~all(isfield(track, requiredTrackFields)) || ...
+        ~isfield(result, "Vehicle") || ...
+        ~isfield(result.Vehicle, "X") || ...
+        ~isfield(result.Vehicle, "Y") || ...
+        ~isfield(result, "Track") || ...
+        ~isfield(result.Track, "EventDistance")
+    return
+end
+
+positionX = double(result.Vehicle.X(:));
+positionY = double(result.Vehicle.Y(:));
+progress = double(result.Track.EventDistance(:));
+sampleCount = min([numel(result.Time), numel(positionX), numel(positionY), numel(progress)]);
+if sampleCount < 2
+    return
+end
+
+positionX = positionX(1:sampleCount);
+positionY = positionY(1:sampleCount);
+progress = progress(1:sampleCount);
+
+finishPoint = [double(track.X(end)), double(track.Y(end))];
+finishTangent = finishPoint - [double(track.X(end - 1)), double(track.Y(end - 1))];
+tangentNorm = hypot(finishTangent(1), finishTangent(2));
+if tangentNorm <= eps
+    return
+end
+finishTangent = finishTangent / tangentNorm;
+finishNormal = [-finishTangent(2), finishTangent(1)];
+
+relativePosition = [positionX, positionY] - finishPoint;
+longitudinalOffset = relativePosition * finishTangent(:);
+lateralOffset = relativePosition * finishNormal(:);
+
+crossingCandidates = find(longitudinalOffset(1:end - 1) < 0.0 & ...
+    longitudinalOffset(2:end) >= 0.0);
+trackLength = double(track.Length);
+gateHalfWidth = max([double(track.LeftHalfWidth(end)), ...
+    double(track.RightHalfWidth(end))]);
+
+for candidateIndex = reshape(crossingCandidates, 1, [])
+    longitudinalSpan = longitudinalOffset(candidateIndex + 1) - ...
+        longitudinalOffset(candidateIndex);
+    if longitudinalSpan <= 0.0
+        continue
+    end
+    fraction = -longitudinalOffset(candidateIndex) / longitudinalSpan;
+    crossingProgress = progress(candidateIndex) + fraction * ...
+        (progress(candidateIndex + 1) - progress(candidateIndex));
+    crossingLateralOffset = lateralOffset(candidateIndex) + fraction * ...
+        (lateralOffset(candidateIndex + 1) - lateralOffset(candidateIndex));
+    if crossingProgress < 0.5 * trackLength || ...
+            abs(crossingLateralOffset) > gateHalfWidth
+        continue
+    end
+    % 包含跨过终点门线后的首个离散样本点，保证轨迹终点越过或正好位于终点线
+    finishIndex = candidateIndex + 1;
+    return
+end
 end
 
 function distance = cumulativeDistance(x, y)
