@@ -85,10 +85,13 @@ elseif any(path == ["Track.LateralError", "Track.BoundaryViolation", ...
         "Track.VehicleEnvelopeClearance", ...
         "Track.VehicleEnvelopeViolation", ...
         "Sensor.PositionX", "Sensor.PositionY", ...
-        "Wheel.SuspensionDeflection"])
+        "Wheel.SuspensionDeflection", "DriverDebug.LateralError", ...
+        "DriverDebug.BoundaryMargin", "DriverDebug.ProjectedX", ...
+        "DriverDebug.ProjectedY", "DriverDebug.PreviewBrakingDistance"])
     info.Unit = "m";
     info.SourceUnit = "m";
-elseif path == "Track.Curvature"
+elseif any(path == ["Track.Curvature", "DriverDebug.TargetCurvature", ...
+        "DriverDebug.LimitingCurvature"])
     info.Unit = "1/m";
     info.SourceUnit = "1/m";
 elseif endsWith(lowerPath, "active") || endsWith(lowerPath, "valid") || ...
@@ -105,6 +108,10 @@ elseif any(path == ["Wheel.Speed", "Powertrain.MotorSpeed", ...
         "Sensor.MotorSpeed", "Sensor.WheelSpeed"])
     info.Unit = "rad/s";
     info.SourceUnit = "rad/s";
+elseif any(path == ["DriverDebug.StateSpeedIntegrator", ...
+        "DriverDebug.PreviewBrakingDeceleration"])
+    info.Unit = "m/s^2";
+    info.SourceUnit = "m/s^2";
 elseif contains(lowerPath, "speed") && ...
         ~contains(lowerPath, "motorlimit") && ~contains(lowerPath, "power")
     info.Unit = "m/s";
@@ -338,6 +345,42 @@ switch path
         name = "总驱动转矩请求";
     case "Driver.BrakePressureRequest"
         name = "制动压力请求";
+    case "DriverDebug.SafeSpeed"
+        name = "驾驶员安全速度上限";
+    case "DriverDebug.LateralError"
+        name = "驾驶员横向跟踪误差";
+    case "DriverDebug.HeadingError"
+        name = "驾驶员航向误差";
+    case "DriverDebug.BoundaryMargin"
+        name = "驾驶员车辆包络边界净空";
+    case "DriverDebug.TargetCurvature"
+        name = "驾驶员目标曲率";
+    case "DriverDebug.LimitingCurvature"
+        name = "驾驶员限制曲率";
+    case "DriverDebug.LateralUtilization"
+        name = "驾驶员横向能力利用率";
+    case "DriverDebug.ProjectedX"
+        name = "驾驶员控制投影 X";
+    case "DriverDebug.ProjectedY"
+        name = "驾驶员控制投影 Y";
+    case "DriverDebug.ResetActive"
+        name = "驾驶员启动复位状态";
+    case "DriverDebug.StatePreviousIndex"
+        name = "驾驶员投影索引状态";
+    case "DriverDebug.StatePreviousReferenceIndex"
+        name = "驾驶员参考路径索引状态";
+    case "DriverDebug.StatePreviousSteering"
+        name = "驾驶员上一转向状态";
+    case "DriverDebug.StateSpeedIntegrator"
+        name = "驾驶员速度积分器状态";
+    case "DriverDebug.PreviewBrakingDeceleration"
+        name = "预见制动减速度";
+    case "DriverDebug.PreviewBrakingDistance"
+        name = "预见制动目标距离";
+    case "DriverDebug.PreviewBrakingTargetSpeed"
+        name = "预见制动目标速度";
+    case "DriverDebug.PreviewBrakingActive"
+        name = "预见制动激活状态";
     case "Actuator.SteeringRackAngleRequest"
         name = "执行器转向齿条角请求";
     case "Actuator.MotorTorqueRequest"

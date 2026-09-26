@@ -91,6 +91,22 @@ for wheelIndex = 1:4
     end
 end
 
+% TC torque reduction is a safety intervention: it may step down faster
+% than the normal motor-torque slew limit. Torque recovery remains bounded
+% by motorTorqueUpper on subsequent samples.
+tcMotorTorqueUpper = tireForceCapacity .* tcScale .* safeRadius ./ ...
+    safeGearProduct;
+for wheelIndex = 1:4
+    if enableTC && tcStateNext(wheelIndex)
+        motorTorqueUpper(wheelIndex) = min( ...
+            motorTorqueUpper(wheelIndex), ...
+            max(tcMotorTorqueUpper(wheelIndex), 0.0));
+        motorTorqueLower(wheelIndex) = min( ...
+            motorTorqueLower(wheelIndex), ...
+            motorTorqueUpper(wheelIndex));
+    end
+end
+
 motorDriveForceUpper = motorTorqueUpper .* safeGearProduct ./ safeRadius;
 motorDriveForceUpper = min(motorDriveForceUpper, ...
     tireForceCapacity .* tcScale);

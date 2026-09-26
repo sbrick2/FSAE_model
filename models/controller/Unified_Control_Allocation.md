@@ -1,14 +1,14 @@
 # UnifiedControl 统一控制分配设计与验证
 
-> 日期：2026-08-02  
-> 状态：功能 MIL 基线完成；实车标定、SIL/PIL 与部署时序待 Deployment 关闭
+> 日期：2026-09-23
+> 状态：功能 MIL 与 adaptive 7DOF/10DOF 短时集成完成；全圈、实车标定、SIL/PIL 待完成
 
 ## 1. 交付范围
 
 UnifiedControl 在不修改共享 Bus 的前提下，新增独立的四轮统一控制分配链：
 
 ```text
-UnifiedControlPathTrackingDriver
+AdaptiveAutocrossDriver / UnifiedControlPathTrackingDriver
         │ DriverCommandBus + feature switches
         v
 UnifiedControlVehicleController
@@ -23,8 +23,10 @@ VehiclePlant10DOF
 ```
 
 生产资产为 `TorqueAllocator.slx`、`UnifiedControlVehicleController.slx`、
-`UnifiedControlPathTrackingDriver.slx` 和 `FSAE_UnifiedControl_ClosedLoop.slx`。TorqueVectoring/Vehicle10DOF 模型保持隔离，
-测试包装模型不被生产模型引用。
+`UnifiedControlPathTrackingDriver.slx` 和 `FSAE_UnifiedControl_ClosedLoop.slx`。此外，
+`FSAE_AdaptiveAutocross_7DOF.slx` 与 `FSAE_AdaptiveAutocross_10DOF.slx` 现已引用同一
+UnifiedControl 控制器；历史 `FSAE_TorqueVectoring_ClosedLoop.slx` 保持原控制器，测试
+包装模型不被生产模型引用。
 
 ## 2. 分配目标与约束
 
@@ -48,7 +50,8 @@ Mz = [-tf/2 tf/2 -tr/2 tr/2] f
 
 - Stateflow 持有四轮上一拍电机转矩和 TC 滞环状态；估算、投影、混合保持独立函数。
 - TC 暂定阈值为 `0.12` 接通、`0.08` 断开、`0.25` 完全削减。
-- 激活模式下单步变化不超过 `1050 N*m/s * 0.005 s = 5.25 N*m`。
+- 正常请求和 TC 解除后的扭矩恢复单步变化不超过
+  `1050 N*m/s * 0.005 s = 5.25 N*m`；TC 安全降扭可立即越过该下限。
 - 模式 `0` 为安全禁用并立即输出零；模式 `2` 为正常激活；模式 `3` 为测量降级。
 - 无效轮速通道禁止正驱动；无效动力系统反馈进入降级模式；安全禁用重置内部状态。
 
@@ -60,20 +63,29 @@ Mz = [-tf/2 tf/2 -tr/2 tr/2] f
 K&C 外倾曲线也尚未关闭，因此 UnifiedControl 结果只能用于功能、约束和数值回归，不可直接
 解释为真实赛车性能。
 
+adaptive 入口通过 `Simulink.SimulationInput` 从本次车辆参数快照显式注入 UnifiedControl
+运行变量，并将 `UnifiedControlMaximumAcceleration/Deceleration` 与驾驶员配置对齐；
+字典值仍作为模型默认值。这样 7DOF/10DOF 切换不会依赖上一次 Base Workspace 状态。
+
 ## 5. 验证结果
 
 | 层级 | 结果 | 量化证据 |
 |---|---|---|
-| 纯函数回归 | PASS，10 类工况 | 标称四轮差 `0`；正横摆输出 `100.000 N*m`；单轮 TC、滞环、禁用与降级通过 |
+| 纯函数回归 | PASS，11 类工况 | 标称四轮差 `0`；正横摆输出 `100.000 N*m`；30% 单轮超滑同拍全削减到 `0 N*m`，其余轮保留驱动力 |
 | 功率与恢复 | PASS | 驱动峰值 `66.316 kW`；再生峰值 `10.000 kW`；最大恢复步长 `5.25 N*m` |
 | Gherkin 组件 MIL | 8/8 场景、45/45 断言 | 完整编译；覆盖标称、横摆、TC、驱动功率/能量、多约束、再生/摩擦、测量降级和安全禁用 |
 | 模型结构 | PASS | 四个生产模型结构健康；分配器 Stateflow lint 健康；分配器与控制器 20 ms 仿真通过 |
 | 10DOF 顶层 MIL | 3/3 场景 | `Skidpad_Baseline`、`Skidpad_AllFeatures`、`Skidpad_NoRegen` 各运行 0.5 s，信号有限且约束满足 |
+| Adaptive 顶层短时 MIL | 7DOF/10DOF 各 2 s PASS | standard、无保存；末速约 `9.47 m/s`，峰值约 `9.53 m/s`；均实际交付非零横摆力矩，结果 Schema 1.2 有效且无缺失信号 |
 
 顶层三场景中最大电机请求为 `8.098 N*m`，最大驱动功率约 `4.884 kW`，最小
 轮荷 `476.713 N`，最大电机转矩单步变化 `5.25 N*m`。场景生成器另提供 7 个
 可复现功能组合；本次关闭门禁使用上述 3 个代表性顶层组合，更多单/多约束组合由
 8 个组件场景覆盖。
+
+2 s adaptive 工况未自然触发 TC，因此顶层短时测试只证明开关、路由、TV 交付和信号链；
+TC 介入与同拍全削减结论来自专门的超滑函数/组件场景。未运行新的完整 autocross 圈，
+不能据此声称圈速提高或全圈资格通过。
 
 ## 6. 复现
 

@@ -21,7 +21,8 @@ if isfield(result, "Distance") && ~isempty(result.Distance)
 end
 groups = ["Track", "Vehicle", "Wheel", "Suspension", "Tire", ...
     "Powertrain", "Battery", "Brake", "Aero", "Driver", ...
-    "Actuator", "Controller", "Sensor", "Thermal", "Environment"];
+    "Actuator", "Controller", "Sensor", "Thermal", "Environment", ...
+    "DriverDebug"];
 sampleCount = numel(result.Time);
 for groupName = groups
     if ~isfield(result, char(groupName))

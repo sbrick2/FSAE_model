@@ -1,10 +1,11 @@
 function result = collectLapSimulationResults(simulationOutput, scenario, cfg)
-%COLLECTLAPSIMULATIONRESULTS 整理圈速仿真的七组顶层输出。
+%COLLECTLAPSIMULATIONRESULTS 整理圈速仿真的七组基线/八组自适应顶层输出。
 %   RESULT = COLLECTLAPSIMULATIONRESULTS(SIMULATIONOUTPUT, SCENARIO, CFG)
 %   从 yout 和 logsout 中读取 VehicleState、PowertrainState、Sensor、
-%   TrackReference、ControllerDebug、DriverCommand、ActuatorCommand，统一
-%   到可绘图的结果结构。所有时间序列第一维长度等于 numel(result.Time)，
-%   四轮量为 Nx4，列顺序固定为 [FL, FR, RL, RR]。
+%   TrackReference、ControllerDebug、DriverCommand、ActuatorCommand，以及
+%   自适应驾驶员可选的 DriverDebug，统一到可绘图的结果结构。所有时间
+%   序列第一维长度等于 numel(result.Time)，四轮量为 Nx4，列顺序固定为
+%   [FL, FR, RL, RR]。
 %
 %   角度内部保存为 rad；速度为 m/s；转速为 rad/s；距离为 m；加速度为
 %   m/s^2。不能从输出中获得的字段保持 []，并在 result.Meta.MissingSignals
@@ -16,6 +17,15 @@ arguments
 end
 
 [signalMap, topLevelOutputs, datasetNames] = readLapOutputSignals(simulationOutput);
+hasDriverDebug = any(topLevelOutputs == "DriverDebug");
+previewBrakingFields = ["PreviewBrakingDeceleration", ...
+    "PreviewBrakingDistance", "PreviewBrakingTargetSpeed", ...
+    "PreviewBrakingActive"];
+hasPreviewBrakingDebug = hasDriverDebug;
+for fieldName = previewBrakingFields
+    hasPreviewBrakingDebug = hasPreviewBrakingDebug && isKey( ...
+        signalMap, canonicalKey("DriverDebug." + fieldName));
+end
 time = readSimulationTime(simulationOutput);
 if isempty(time)
     keysInMap = keys(signalMap);
@@ -25,8 +35,9 @@ if isempty(time)
 end
 time = normalizeTime(time);
 
-result = initializeLapResult(time, cfg);
-mapping = lapSignalMapping();
+result = initializeLapResult(time, cfg, hasDriverDebug, ...
+    hasPreviewBrakingDebug);
+mapping = lapSignalMapping(hasDriverDebug, hasPreviewBrakingDebug);
 dimensionIssues = strings(0, 1);
 sources = struct;
 for index = 1:size(mapping, 1)
@@ -93,9 +104,16 @@ result.Meta = struct( ...
     "Notes", "车辆、气动和部分动力系统参数仍可能包含占位值；结果不是实车性能结论。");
 end
 
-function result = initializeLapResult(time, cfg)
+function result = initializeLapResult(time, cfg, includeDriverDebug, ...
+        includePreviewBrakingDebug)
 result = struct;
-result.SchemaVersion = "1.0";
+if includePreviewBrakingDebug
+    result.SchemaVersion = "1.2";
+elseif includeDriverDebug
+    result.SchemaVersion = "1.1";
+else
+    result.SchemaVersion = "1.0";
+end
 result.Time = reshape(time, [], 1);
 result.Distance = [];
 result.Config = cfg;
@@ -114,6 +132,20 @@ result.Battery = emptyFields(["Voltage", "Current", "Power", "SOC"]);
 result.Driver = emptyFields(["SteeringWheelAngleRequest", ...
     "SteeringRackAngleRequest", "LongitudinalAccelerationRequest", ...
     "DriveTorqueRequest", "BrakePressureRequest"]);
+if includeDriverDebug
+    result.DriverDebug = emptyFields(["SafeSpeed", "LateralError", ...
+        "HeadingError", "BoundaryMargin", "TargetCurvature", ...
+        "LimitingCurvature", "LateralUtilization", "ProjectedX", ...
+        "ProjectedY", "ResetActive", "StatePreviousIndex", ...
+        "StatePreviousReferenceIndex", "StatePreviousSteering", ...
+        "StateSpeedIntegrator"]);
+    if includePreviewBrakingDebug
+        result.DriverDebug.PreviewBrakingDeceleration = [];
+        result.DriverDebug.PreviewBrakingDistance = [];
+        result.DriverDebug.PreviewBrakingTargetSpeed = [];
+        result.DriverDebug.PreviewBrakingActive = [];
+    end
+end
 result.Actuator = emptyFields(["SteeringRackAngleRequest", ...
     "MotorTorqueRequest", "FrictionBrakeTorqueRequest", ...
     "RegenTorqueRequest", "TotalPowerRequest"]);
@@ -136,7 +168,8 @@ for name = reshape(string(names), 1, [])
 end
 end
 
-function mapping = lapSignalMapping()
+function mapping = lapSignalMapping(includeDriverDebug, ...
+        includePreviewBrakingDebug)
 % 四轮信号候选名覆盖顶层 Bus 名称、日志名称和 OpenLoopPlant 参考名称。
 mapping = {
     "Vehicle.X", {"VehicleState.X", "Vehicle.X", "Vehicle7DOF.X", "X"};
@@ -175,6 +208,24 @@ mapping = {
     "Driver.DriveTorqueRequest", {"DriverCommand.DriveTorqueRequest", "DriveTorqueRequest"};
     "Driver.BrakePressureRequest", {"DriverCommand.BrakePressureRequest", "BrakePressureRequest"};
     "Actuator.SteeringRackAngleRequest", {"ActuatorCommand.SteeringRackAngleRequest", "Actuator.SteeringRackAngleRequest"};
+    "DriverDebug.SafeSpeed", {"DriverDebug.SafeSpeed"};
+    "DriverDebug.LateralError", {"DriverDebug.LateralError"};
+    "DriverDebug.HeadingError", {"DriverDebug.HeadingError"};
+    "DriverDebug.BoundaryMargin", {"DriverDebug.BoundaryMargin"};
+    "DriverDebug.TargetCurvature", {"DriverDebug.TargetCurvature"};
+    "DriverDebug.LimitingCurvature", {"DriverDebug.LimitingCurvature"};
+    "DriverDebug.LateralUtilization", {"DriverDebug.LateralUtilization"};
+    "DriverDebug.ProjectedX", {"DriverDebug.ProjectedX"};
+    "DriverDebug.ProjectedY", {"DriverDebug.ProjectedY"};
+    "DriverDebug.ResetActive", {"DriverDebug.ResetActive"};
+    "DriverDebug.StatePreviousIndex", {"DriverDebug.StatePreviousIndex"};
+    "DriverDebug.StatePreviousReferenceIndex", {"DriverDebug.StatePreviousReferenceIndex"};
+    "DriverDebug.StatePreviousSteering", {"DriverDebug.StatePreviousSteering"};
+    "DriverDebug.StateSpeedIntegrator", {"DriverDebug.StateSpeedIntegrator"};
+    "DriverDebug.PreviewBrakingDeceleration", {"DriverDebug.PreviewBrakingDeceleration"};
+    "DriverDebug.PreviewBrakingDistance", {"DriverDebug.PreviewBrakingDistance"};
+    "DriverDebug.PreviewBrakingTargetSpeed", {"DriverDebug.PreviewBrakingTargetSpeed"};
+    "DriverDebug.PreviewBrakingActive", {"DriverDebug.PreviewBrakingActive"};
     "Actuator.MotorTorqueRequest", {"ActuatorCommand.MotorTorqueRequest", "Actuator.MotorTorqueRequest"};
     "Actuator.FrictionBrakeTorqueRequest", {"ActuatorCommand.FrictionBrakeTorqueRequest", "FrictionBrakeTorqueRequest"};
     "Actuator.RegenTorqueRequest", {"ActuatorCommand.RegenTorqueRequest", "RegenTorqueRequest"};
@@ -213,6 +264,14 @@ mapping = {
     "Track.LateralError", {"TrackReference.LateralError", "Track.LateralError", "LateralError"};
     "Track.BoundaryViolation", {"TrackReference.BoundaryViolation", "Track.BoundaryViolation", "BoundaryViolation"};
     };
+if ~includeDriverDebug
+    mapping = mapping(~startsWith(string(mapping(:, 1)), "DriverDebug."), :);
+elseif ~includePreviewBrakingDebug
+    previewPaths = "DriverDebug." + ["PreviewBrakingDeceleration", ...
+        "PreviewBrakingDistance", "PreviewBrakingTargetSpeed", ...
+        "PreviewBrakingActive"];
+    mapping = mapping(~ismember(string(mapping(:, 1)), previewPaths), :);
+end
 end
 
 function result = deriveLapVehicleSignals(result)
@@ -597,7 +656,7 @@ topLevelOutputs = strings(0, 1);
 datasetNames = strings(0, 1);
 expectedYoutNames = ["VehicleState", "PowertrainState", "Sensor", ...
     "TrackReference", "ControllerDebug", "DriverCommand", ...
-    "ActuatorCommand"];
+    "ActuatorCommand", "DriverDebug"];
 outputNames = string(out.who);
 for dataSetName = ["yout", "logsout"]
     if ~any(outputNames == dataSetName)
@@ -616,7 +675,7 @@ for dataSetName = ["yout", "logsout"]
             name = string(element.Name);
         end
         % 当前顶层 Outport 的 yout 元素没有 Name 属性，按模型 Outport
-        % 顺序恢复冻结的七组输出名称，避免后处理依赖 Signal1 等临时名。
+        % 顺序恢复冻结的前七组及可选第八组输出名称，避免依赖 Signal1 等临时名。
         if dataSetName == "yout" && name == "Signal" + index && ...
                 index <= numel(expectedYoutNames)
             name = expectedYoutNames(index);
@@ -804,13 +863,20 @@ end
 if isempty(data)
     return
 end
+logicalData = islogical(data);
 if size(data, 1) == 1
     data = repmat(data, numel(targetTime), 1);
 else
-    output = zeros(numel(targetTime), size(data, 2));
+    if logicalData
+        output = false(numel(targetTime), size(data, 2));
+        interpolationMethod = "previous";
+    else
+        output = zeros(numel(targetTime), size(data, 2));
+        interpolationMethod = "linear";
+    end
     for column = 1:size(data, 2)
         output(:, column) = interp1(sourceTime, double(data(:, column)), ...
-            targetTime, "linear", "extrap");
+            targetTime, interpolationMethod, "extrap");
     end
     data = output;
 end
@@ -861,6 +927,9 @@ function values = findMissingLapFields(result)
 values = strings(0, 1);
 groups = ["Track", "Vehicle", "Wheel", "Tire", "Powertrain", ...
     "Battery", "Driver", "Actuator", "Controller", "Sensor"];
+if isfield(result, "DriverDebug")
+    groups(end + 1) = "DriverDebug";
+end
 for groupName = groups
     fields = fieldnames(result.(char(groupName)));
     for fieldIndex = 1:numel(fields)
@@ -876,6 +945,9 @@ function values = findNonFiniteLapFields(result)
 values = strings(0, 1);
 groups = ["Track", "Vehicle", "Wheel", "Tire", "Powertrain", ...
     "Battery", "Driver", "Actuator", "Controller", "Sensor"];
+if isfield(result, "DriverDebug")
+    groups(end + 1) = "DriverDebug";
+end
 for groupName = groups
     fields = fieldnames(result.(char(groupName)));
     for fieldIndex = 1:numel(fields)

@@ -20,12 +20,13 @@ if ~isfield(loaded, "result") || ~isstruct(loaded.result)
         "结果文件 '%s' 中缺少名为 result 的结构变量。", filePath);
 end
 result = loaded.result;
-expectedVersion = "1.0";
+supportedVersions = ["1.0", "1.1", "1.2"];
 actualVersion = string(getValue(result, "SchemaVersion", ""));
-if actualVersion ~= expectedVersion
+if ~any(actualVersion == supportedVersions)
     error("FSAE:Lap:ResultVersion", ...
-        "结果版本不兼容：期望 %s，实际 %s。", expectedVersion, actualVersion);
+        "结果版本不兼容：支持 %s，实际 %s。", strjoin(supportedVersions, ", "), actualVersion);
 end
+validateDriverDebugSchema(result, actualVersion);
 if ~isfield(result, "Time") || isempty(result.Time)
     error("FSAE:Lap:ResultTimeMissing", "结果中缺少非空 result.Time。");
 end
@@ -44,10 +45,42 @@ result.Meta.LoadedFile = filePath;
 result.Meta.OutputFolder = string(fileparts(filePath));
 result.Meta.ResultFile = filePath;
 end
+function validateDriverDebugSchema(result, schemaVersion)
+if schemaVersion == "1.0"
+    if isfield(result, "DriverDebug")
+        error("FSAE:Lap:ResultDriverDebugUnexpected", ...
+            "Schema 1.0 must not contain result.DriverDebug.");
+    end
+    return
+end
+if ~isfield(result, "DriverDebug") || ~isstruct(result.DriverDebug)
+    error("FSAE:Lap:ResultDriverDebugGroupMissing", ...
+        "Schema 1.1 requires result.DriverDebug.");
+end
+requiredFields = ["SafeSpeed", "LateralError", "HeadingError", ...
+    "BoundaryMargin", "TargetCurvature", "LimitingCurvature", ...
+    "LateralUtilization", "ProjectedX", "ProjectedY", "ResetActive", ...
+    "StatePreviousIndex", "StatePreviousReferenceIndex", ...
+    "StatePreviousSteering", "StateSpeedIntegrator"];
+if schemaVersion == "1.2"
+    requiredFields = [requiredFields, ...
+        "PreviewBrakingDeceleration", "PreviewBrakingDistance", ...
+        "PreviewBrakingTargetSpeed", "PreviewBrakingActive"];
+end
+missingFields = setdiff(requiredFields, string(fieldnames(result.DriverDebug)));
+if ~isempty(missingFields)
+    error("FSAE:Lap:ResultDriverDebugFieldMissing", ...
+        "Schema 1.1 result.DriverDebug missing fields: %s.", ...
+        strjoin(missingFields, ", "));
+end
+end
 
 function validateTimeSeriesFields(result, sampleCount)
 groups = ["Track", "Vehicle", "Wheel", "Tire", "Powertrain", ...
     "Battery", "Driver", "Actuator", "Controller", "Sensor"];
+if isfield(result, "DriverDebug")
+    groups(end + 1) = "DriverDebug";
+end
 fourWheelGroups = ["Wheel", "Tire", "Actuator"];
 for groupName = groups
     if ~isfield(result, char(groupName))

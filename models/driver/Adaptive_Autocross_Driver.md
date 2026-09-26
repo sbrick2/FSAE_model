@@ -1,14 +1,19 @@
 # GGV 约束的 Adaptive Autocross 驾驶员
 
-> 状态：闭合赛道 standard 资格圈通过；开放赛道完赛与零越界验证通过<br>
-> 更新日期：2026-09-14
+> 状态：预见制动、统一 TV/TC 控制链及 7DOF/10DOF 短时 MIL 已通过；新全圈资格待复跑<br>
+> 更新日期：2026-09-23
 
 ## 1. 模型边界
 
-`AdaptiveAutocrossDriver.slx` 直接接收 `PathTrackingTrackDataBus` 和 `SensorBus`，输出既有
-`DriverCommandBus`。独立顶层 `FSAE_AdaptiveAutocross_7DOF.slx` 和
-`FSAE_AdaptiveAutocross_10DOF.slx` 将其连接到 TorqueVectoring 控制器、传感器以及
+`AdaptiveAutocrossDriver.slx` 的外部合同固定为两个输入和两个输出：直接接收
+`PathTrackingTrackDataBus` 与 `SensorBus`，输出既有 `DriverCommandBus` 以及只读诊断
+`DriverDebugBus`。独立顶层 `FSAE_AdaptiveAutocross_7DOF.slx` 和
+`FSAE_AdaptiveAutocross_10DOF.slx` 将其连接到 `UnifiedControlVehicleController`、传感器以及
 对应的 7DOF/10DOF Plant，不改变原 reference-speed 闭环模型。
+
+两个 adaptive 顶层把 `DriverDebug` 追加为第 8 个顶层输出；前 7 个输出的名称、顺序和
+合同保持不变。`DriverDebugBus` 仅用于检查驾驶员的速度约束、投影和离散状态，不进入
+控制器或 Plant，不能作为性能结论的替代数据。
 
 与旧实现不同，adaptive 模式会读取 `TrackData.ReferenceSpeed`。该信号由原始
 GGV、驾驶员纵横向请求能力、尖弯曲率保护及前/后向传播生成，是不可超越的能力
@@ -21,6 +26,17 @@ GGV、驾驶员纵横向请求能力、尖弯曲率保护及前/后向传播生�
 保证 persistent 投影状态、上一转角和 PI 积分器不会随变步长求解器的主步次数
 变化。
 
+### 2.1 启动复位与状态生命周期
+
+外部端口不暴露复位输入。模型内部以 `Constant(false)` 驱动 `Unit Delay`
+`StartOfRunReset`，其初始条件为 `true`、采样时间为 `AADControlSampleTime`；因此每次
+仿真启动时恰有一个控制采样周期向核心发出复位，之后恒为 `false`。核心在该周期重建
+投影索引、参考索引、上一转角和速度 PI 积分器，避免隐藏 persistent 状态跨运行残留。
+`DriverDebug.ResetActive` 记录该复位周期，其余 `State*` 字段记录复位后的当前离散状态。
+
+该机制是可观测性和可重复性的结构改动；本身不代表圈速已提升，也尚未以新的 standard
+全圈资格结果替代本文件第 5 节的历史结果。
+
 每个周期执行：
 
 1. 在上一投影点附近对物理中心线线段做连续投影，得到物理站点和包络基准；同一
@@ -30,10 +46,13 @@ GGV、驾驶员纵横向请求能力、尖弯曲率保护及前/后向传播生�
 3. 将前后轴四个轮胎外缘点投影到赛道，取最小车辆包络净空；储备区内连续降低
    GGV 速度上限，紧急区禁止加速，包络到达边界时请求最大制动；
 4. 读取当前位置的 GGV 参考速度上限，并由相邻 `v^2` 空间梯度生成仅正向的纵向
-   前馈；减速保持闭环，避免负前馈与横向能力限制叠加后在发卡弯过制动；
+   加速前馈；另在默认 `45 m` 窗口内扫描前方参考速度，按
+   `(v_now^2-v_target^2)/(2*distance)` 提前生成制动上限。零填充、尚未规划的
+   `ReferenceSpeed` 不会被误判为停车目标，仍使用几何降级路径；
 5. 根据实测横向加速度缩小纵向能力，用 PI + 抗饱和生成加减速请求；超速时清除
    正积分记忆，避免积分器继续加速；
-6. 保持 TV/TC/再生制动接口；当前 adaptive 基线启用再生制动。
+6. 通过可配置的 `EnableTV`、`EnableTC` 和再生开关驱动统一控制器；默认启用 TV、
+   TC 与再生制动。
 
 尖弯保护从 `|curvature|=0.9*threshold` 开始用 smoothstep 渐入，达到阈值后使用
 完整保护系数，避免单个曲率采样点造成刚性速度跳变。
@@ -62,6 +81,7 @@ GGV 使用的高曲率保护线。保护线不会进入在线转向控制，因�
 | `MaximumSpeed` | `32 m/s` |
 | `SpeedPreviewDistance/Step` | `190/0.75 m` |
 | `SpeedKp/SpeedKi/基础/退出前馈增益` | `4.0/0.20/0.60/0.60` |
+| 预见制动启用/窗口/前馈增益/减速度比例 | `true / 45 m / 0.65 / 0.90` |
 | `HighCurvatureThreshold/SafetyFactor` | `0.30 1/m / 1.50` |
 | `BoundaryReserve/EmergencyBoundaryMargin` | `0.50/0.25 m` |
 | `MaximumSteeringAngle/Rate` | `0.50 rad / 6 rad/s` |
@@ -71,6 +91,7 @@ GGV 使用的高曲率保护线。保护线不会进入在线转向控制，因�
 | 赛车线软惩罚阈值/缓冲/权重 | `0.25 1/m / 15 m / 0.020` |
 | 赛车线曲率混合起止/最大权重 | `0.15/0.30 1/m / 0.0` |
 | 边界预瞄距离 | `6.0 m` |
+| `EnableTV/EnableTC` | `true/true` |
 
 车辆轴距、质心位置和轮距来自 `VehicleData.sldd`。轮胎包络宽度使用
 `TireSectionWidth=0.1905 m`；更换轮胎后必须同步更新。
@@ -91,7 +112,7 @@ GGV 使用的高曲率保护线。保护线不会进入在线转向控制，因�
 
 ## 5. 当前验证状态
 
-2026-08-23 standard 结果：
+2026-08-23 standard 历史结果：
 
 `results/time_domain_closed_loop/autocross/20260823_162040_adaptive_ggv_120pct/`
 
@@ -108,6 +129,16 @@ GGV 使用的高曲率保护线。保护线不会进入在线转向控制，因�
 
 资格圈仅比门槛低约 `0.00087 s`，因此更改车辆、轮胎、赛道离散或求解器后必须
 重新运行 standard 验收，不能沿用该通过结论。
+
+2026-09-23 完成控制链改造后的验证边界如下：
+
+- 预见制动/开关函数测试 `11/11` 通过，结果 Schema 测试 `6/6` 通过；
+- YawController 完整编译 MIL `5/5` 场景、`15/15` 断言通过；
+- TorqueAllocator 完整编译 MIL `8/8` 场景、`45/45` 断言通过；
+- 规划参考速度下 7DOF/10DOF 各运行 `2 s` standard 无保存仿真，均加速到约
+  `9.53 m/s`，结果有效且实际分配出非零横摆力矩；自然工况未触发 TC；
+- 上述短时结果不替代 2026-08-23 的全圈资格。由于控制器、预见制动和结果合同均已
+  变化，必须复跑完整 standard 圈速矩阵后才能声称圈速改善或继续沿用资格结论。
 
 同日开放加速赛道验证：75 m 在 `4.285 s` 完成，四轮包络最小净空
 `0.802617 m`、最大越界 `0 m`，standard 求解器和开放赛道资格均 PASS。其 GGV

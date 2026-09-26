@@ -1,7 +1,7 @@
 # FSAE 圈速仿真与结果绘图分析脚本规格说明
 
 > 状态：已实施；支持 7DOF/10DOF 与两类驾驶员独立选择
-> 更新日期：2026-09-14
+> 更新日期：2026-09-23
 > 目标环境：MATLAB / Simulink R2026a  
 > 适用项目：`FSAE_Simulation.prj`
 
@@ -22,8 +22,8 @@
 |---|---|---|
 | 顶层闭环模型 | `FSAE_TorqueVectoring_ClosedLoop.slx` / `FSAE_Vehicle10DOF_ClosedLoop.slx` / `FSAE_AdaptiveAutocross_7DOF.slx` / `FSAE_AdaptiveAutocross_10DOF.slx` | 参考速度与自适应驾驶员各自支持 7DOF/10DOF 顶层 |
 | 车辆模型 | `VehiclePlant.slx` / `VehiclePlant10DOF.slx` | 可选平面轮荷或动态悬架轮荷 Plant |
-| 驾驶员模型 | `TorqueVectoringPathTrackingDriver.slx` / `AdaptiveAutocrossDriver.slx` | GGV 参考速度跟踪，或直接使用几何且不读取参考速度 |
-| 控制器模型 | `TorqueVectoringVehicleController.slx` | 两类驾驶员共用；TV 由驾驶员配置显式选择 |
+| 驾驶员模型 | `TorqueVectoringPathTrackingDriver.slx` / `AdaptiveAutocrossDriver.slx` | GGV 参考速度跟踪，或使用完整几何和 `ReferenceSpeed` 能力上限的 adaptive 控制 |
+| 控制器模型 | `TorqueVectoringVehicleController.slx` / `UnifiedControlVehicleController.slx` | reference-speed 保持旧控制器；adaptive 7DOF/10DOF 使用统一 TV/TC 分配器 |
 | 车辆参数 | `data/VehicleData.sldd` | 车辆、轮胎、动力系统、环境、Bus 和默认值 |
 | 仿真输入生成 | `scripts/simulation/createPathTrackingSimulationInput.m` | 创建可重复的 `Simulink.SimulationInput` |
 | 结果整理参考 | `scripts/simulation/collectOpenLoopResults.m` | 从 `yout`、`logsout` 读取并规范化信号 |
@@ -39,6 +39,15 @@
 - `ControllerDebug`
 - `DriverCommand`
 - `ActuatorCommand`
+
+两个 `FSAE_AdaptiveAutocross_<7DOF|10DOF>.slx` 顶层保持以上 7 个输出的名称和顺序，
+并仅在末尾追加第 8 个 `DriverDebug`。它承载 `DriverDebugBus` 的只读诊断和启动复位状态，
+不进入控制器或 Plant；因此不能据此宣称已改善圈速。
+
+adaptive 模式的 `createLapSimulationInput` 从本次参数快照注入 UnifiedControl 物理/约束
+变量，驾驶员分别输出 `EnableTV` 与 `EnableTC`。`YawController` 显式以 5 ms 离散
+执行；`TVActive` 仅表示门控打开，是否真正交付横摆力矩应比较
+`DesiredYawMoment` 与 `AllocatedYawMoment`。
 
 这些输出可直接覆盖位置、速度、加速度、轮荷、轮速、轮胎转角、电机转矩、驾驶员转向请求和控制器状态等主要分析需求。
 
@@ -78,7 +87,7 @@ scripts/
 │   ├── createLapScenario.m            # 统一选择和生成四类赛道
 │   ├── createLapSimulationInput.m     # 路由 TorqueVectoring/7DOF 或 Vehicle10DOF/10DOF SimulationInput
 │   ├── collectLapSimulationSnapshot.m # 读取终点检查和进度显示所需的最新样本
-│   ├── collectLapSimulationResults.m  # 整理七组顶层输出
+│   ├── collectLapSimulationResults.m  # 整理七组基线或八组 adaptive 顶层输出
 │   ├── createFinalTrackViewFigure.m   # 创建求解完成后的最终赛道图
 │   └── saveLapSimulationResults.m     # 创建运行目录并保存结果
 └── reporting/
@@ -108,7 +117,7 @@ flowchart LR
     C --> D["创建 SimulationInput"]
     D --> E["FSAE_TorqueVectoring / FSAE_Vehicle10DOF ClosedLoop"]
     E --> F["命令行仿真进度"]
-    E --> G["七组顶层输出 yout/logsout"]
+    E --> G["七组基线 / 八组 adaptive 顶层输出 yout/logsout"]
     G --> H["规范化结果结构 result"]
     H --> M["最终赛道图"]
     H --> I["results/time_domain_closed_loop/<event>/..."]
@@ -280,7 +289,7 @@ Distance(k) = Distance(k-1) + hypot(X(k)-X(k-1), Y(k)-Y(k-1))
 
 ### 7.2 结果结构
 
-所有时序字段第一维长度必须等于 `numel(result.Time)`。四轮量为 `Nx4`，顺序固定为 `[FL, FR, RL, RR]`。
+所有时序字段第一维长度必须等于 `numel(result.Time)`。四轮量为 `Nx4`，顺序固定为 `[FL, FR, RL, RR]`。带预见制动诊断的当前 adaptive 结果使用 Schema 1.2（100 个字段）；旧 14 字段 adaptive 结果兼容 Schema 1.1（96 个字段）；无该输出的既有结果保持 Schema 1.0（82 个字段）。
 
 | 结果组 | 主要字段 | 来源 |
 |---|---|---|
@@ -292,6 +301,7 @@ Distance(k) = Distance(k-1) + hypot(X(k)-X(k-1), Y(k)-Y(k-1))
 | `Powertrain` | `MotorTorqueActual`、`MotorSpeed`、`MotorRPM`、`MotorMechanicalPower`、限幅状态 | `PowertrainStateBus` 及派生 |
 | `Battery` | `Voltage`、`Current`、`Power`、`SOC` | `PowertrainStateBus` |
 | `Driver` | 方向盘/齿条请求、纵向加速度请求、驱动转矩请求、制动压力请求 | `DriverCommandBus` |
+| `DriverDebug` | 安全速度、跟踪误差、边界净空、曲率、投影、启动复位、离散状态和预见制动；Schema 1.2 adaptive | `DriverDebugBus` |
 | `Actuator` | 齿条请求、四轮电机请求转矩、四轮摩擦制动转矩、四轮再生请求 | `ActuatorCommandBus` |
 | `Controller` | 参考横摆角速度、误差、目标力/力矩、TV/TC/再生/能量管理状态 | `ControllerDebugBus` |
 | `Sensor` | 位置、车速、加速度、轮速、齿条角、电机测量、电池测量和有效位 | `SensorBus` |
@@ -311,7 +321,7 @@ Distance(k) = Distance(k-1) + hypot(X(k)-X(k-1), Y(k)-Y(k-1))
 | 实际方向盘传感器角 | 当前没有独立字段 | 不得用请求值冒充；需要时扩展 Bus |
 | 实际轮端施加转矩 | 顶层 Bus 未独立暴露 | 优先增加内部信号日志；也可保存明确标注的派生估计值 |
 
-任何缺失字段均保持为空并写入 `result.Meta.MissingSignals`，不得用零值伪装为有效结果。
+任何缺失字段均保持为空并写入 `result.Meta.MissingSignals`，不得用零值伪装为有效结果。旧 14 字段 `DriverDebug` 应保持 Schema 1.1，不得补造 4 个预见制动字段；没有 `DriverDebug` 的既有结果应标记为 Schema 1.0。
 
 ## 8. 主程序二：绘图分析
 

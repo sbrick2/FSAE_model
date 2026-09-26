@@ -47,6 +47,7 @@ Mz_req = clamp(Mz_raw, -Mz_max, Mz_max)
 ```
 
 积分器包含反算防饱和、独立限幅，以及在控制禁用或传感器无效时的复位。
+`YawController.slx` 现显式配置为 `5 ms` 离散执行；不再依赖上层模型继承采样时间。
 
 ## 3. 四轮分配
 
@@ -65,8 +66,9 @@ T_motor = T_common + [-dT, +dT, -dT, +dT]
 3. 优先保持左右差动、先削减共同转矩；
 4. 剩余制动需求按既有四轮摩擦制动能力分配。
 
-UnifiedControl 将把 TC、TV、再生制动和功率限制升级为统一约束分配；TorqueVectoring 不提前声称已完成
-该优化问题。
+AdaptiveAutocross 7DOF/10DOF 顶层现已使用 UnifiedControl，把 TC、TV、再生制动和
+功率限制放入统一约束分配。本文所述旧分配器仍服务于历史
+`FSAE_TorqueVectoring_ClosedLoop.slx`，其既有结果不得冒充 adaptive UnifiedControl 结果。
 
 ## 4. 参数与 TTC 使用
 

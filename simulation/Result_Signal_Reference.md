@@ -1,12 +1,12 @@
 # 标准结果信号与绘图参考
 
-> 当前标准：圈速结果 Schema 1.0（82 个时序字段）
-> 更新日期：2026-08-31
+> 当前标准：圈速结果 Schema 1.2（100 个时序字段）；兼容 Schema 1.1（96）和 1.0（82）
+> 更新日期：2026-09-23
 > 依赖：[信号接口](../models/SignalInterfaces.md)、[坐标系与符号](../models/CoordinateSystem.md)、[圈速仿真规范](time_domain_closed_loop/Lap_Simulation_Spec.md)
 
 ## 1. 目的
 
-本文件统一说明圈速仿真结果的字段命名、单位、维度、四轮顺序、生产来源和绘图分组。当前闭环标准以 `collectLapSimulationResults` 生成的 Schema 1.0 为基础，并包含资格检查后加入的 3 个赛道诊断字段，共 82 个时序字段。
+本文件统一说明圈速仿真结果的字段命名、单位、维度、四轮顺序、生产来源和绘图分组。Schema 1.2 在 Schema 1.1 的 96 个时序字段基础上，追加 4 个预见制动诊断字段，共 100 个时序字段。旧 adaptive 结果仍按 Schema 1.1 的 14 字段 `DriverDebug` 读取；不含该顶层输出的既有结果继续按 Schema 1.0 解释。
 
 ResultVisualization 开环结果字段仍保留在文末作为兼容参考。开环和闭环字段不得仅因名称相近而自动互换；缺失字段必须明确报告，不得静默填零。
 
@@ -33,6 +33,7 @@ result
 ├─ Powertrain
 ├─ Battery
 ├─ Driver
+├─ DriverDebug                 # adaptive Schema 1.1/1.2
 ├─ Actuator
 ├─ Controller
 ├─ Sensor
@@ -40,14 +41,14 @@ result
 └─ Meta
 ```
 
-- `SchemaVersion`：结果结构版本，当前为 `"1.0"`；
+- `SchemaVersion`：带 18 字段 `DriverDebug` 的当前 adaptive 结果为 `"1.2"`；旧 14 字段 adaptive 结果为 `"1.1"`；无该输出的既有结果保持 `"1.0"`；
 - `Time`：严格递增的 `Nx1` 秒制时间向量；
 - `Distance`：由车辆全局位置派生的 `Nx1` 实际累计行驶距离，单位 m；
 - `Config`：本次仿真配置快照，不属于时序字段；
-- `Metrics`：整次仿真的标量指标，不计入下列 82 个时序字段；
-- `Meta`：信号来源、完整性、有效性和运行环境等元数据，不计入 82 个时序字段。
+- `Metrics`：整次仿真的标量指标，不计入下列 100/96/82 个 Schema 时序字段；
+- `Meta`：信号来源、完整性、有效性和运行环境等元数据，不计入时序字段。
 
-原始数据从 `yout` 和 `logsout` 中读取。闭环标准顶层输出为 `VehicleState`、`PowertrainState`、`Sensor`、`TrackReference`、`ControllerDebug`、`DriverCommand` 和 `ActuatorCommand`。
+原始数据从 `yout` 和 `logsout` 中读取。既有闭环顶层输出为 `VehicleState`、`PowertrainState`、`Sensor`、`TrackReference`、`ControllerDebug`、`DriverCommand` 和 `ActuatorCommand`。两个 adaptive 顶层仅在末尾追加第 8 个 `DriverDebug` 输出；前 7 个输出的名称和顺序不变。
 
 ## 3. 通用规则
 
@@ -59,9 +60,9 @@ result
 - 后处理允许从已有有效信号派生字段，但不得用零值伪装缺失信号；
 - 缺失、非有限值和维度问题分别记录在 `Meta.MissingSignals`、`Meta.NonFiniteSignals` 和 `Meta.DimensionIssues`。
 
-## 4. Schema 1.0 时序信号表（82 个字段）
+## 4. Schema 1.2 时序信号表（100 个字段）
 
-字段总数按分组统计为：`Track 11 + Vehicle 12 + Wheel 7 + Tire 3 + Powertrain 7 + Battery 4 + Driver 5 + Actuator 5 + Controller 10 + Sensor 18 = 82`。
+Schema 1.2 的字段总数按分组统计为：`Track 11 + Vehicle 12 + Wheel 7 + Tire 3 + Powertrain 7 + Battery 4 + Driver 5 + DriverDebug 18 + Actuator 5 + Controller 10 + Sensor 18 = 100`。Schema 1.1 保持旧 14 字段 `DriverDebug` 的 96 个字段；Schema 1.0 保持不含 `DriverDebug` 的原 82 个字段。
 
 ### 4.1 `Track`（11）
 
@@ -149,6 +150,31 @@ result
 | 4 | `Driver.DriveTorqueRequest` | N·m | `Nx1` | double | `DriverCommand.DriveTorqueRequest`，总驱动转矩请求 |
 | 5 | `Driver.BrakePressureRequest` | Pa | `Nx1` | double | `DriverCommand.BrakePressureRequest`，非负制动压力请求 |
 
+### 4.7.1 `DriverDebug`（18，Schema 1.2 adaptive）
+
+| # | 结果字段 | 单位 | 维度 | 类型 | 生产来源/说明 |
+|---:|---|---|---:|---|---|
+| 1 | `DriverDebug.SafeSpeed` | m/s | `Nx1` | double | `DriverDebug.SafeSpeed`，当前安全速度上限 |
+| 2 | `DriverDebug.LateralError` | m | `Nx1` | double | `DriverDebug.LateralError`，相对控制参考线横向误差 |
+| 3 | `DriverDebug.HeadingError` | rad | `Nx1` | double | `DriverDebug.HeadingError`，相对控制参考航向误差 |
+| 4 | `DriverDebug.BoundaryMargin` | m | `Nx1` | double | `DriverDebug.BoundaryMargin`，车辆包络最小净空 |
+| 5 | `DriverDebug.TargetCurvature` | 1/m | `Nx1` | double | `DriverDebug.TargetCurvature` |
+| 6 | `DriverDebug.LimitingCurvature` | 1/m | `Nx1` | double | `DriverDebug.LimitingCurvature` |
+| 7 | `DriverDebug.LateralUtilization` | 1 | `Nx1` | double | `DriverDebug.LateralUtilization` |
+| 8 | `DriverDebug.ProjectedX` | m | `Nx1` | double | `DriverDebug.ProjectedX`，控制参考投影全局 X |
+| 9 | `DriverDebug.ProjectedY` | m | `Nx1` | double | `DriverDebug.ProjectedY`，控制参考投影全局 Y |
+| 10 | `DriverDebug.ResetActive` | 1 | `Nx1` | boolean | `DriverDebug.ResetActive`，启动复位周期 |
+| 11 | `DriverDebug.StatePreviousIndex` | 1 | `Nx1` | double | `DriverDebug.StatePreviousIndex` |
+| 12 | `DriverDebug.StatePreviousReferenceIndex` | 1 | `Nx1` | double | `DriverDebug.StatePreviousReferenceIndex` |
+| 13 | `DriverDebug.StatePreviousSteering` | rad | `Nx1` | double | `DriverDebug.StatePreviousSteering` |
+| 14 | `DriverDebug.StateSpeedIntegrator` | m/s² | `Nx1` | double | `DriverDebug.StateSpeedIntegrator` |
+| 15 | `DriverDebug.PreviewBrakingDeceleration` | m/s² | `Nx1` | double | 前方参考速度要求的最大减速度 |
+| 16 | `DriverDebug.PreviewBrakingDistance` | m | `Nx1` | double | 限制预见制动的前方距离 |
+| 17 | `DriverDebug.PreviewBrakingTargetSpeed` | m/s | `Nx1` | double | 限制点参考速度 |
+| 18 | `DriverDebug.PreviewBrakingActive` | 1 | `Nx1` | boolean | 预见制动前馈是否生效 |
+
+Schema 1.1 的旧结果只包含前 14 项；读取器不会为其伪造 4 个预见制动字段。
+
 ### 4.8 `Actuator`（5）
 
 | # | 结果字段 | 单位 | 维度 | 类型 | 生产来源/说明 |
@@ -168,8 +194,8 @@ result
 | 3 | `Controller.DesiredLongitudinalForce` | N | `Nx1` | double | `ControllerDebug.DesiredLongitudinalForce`，期望纵向合力 |
 | 4 | `Controller.DesiredYawMoment` | N·m | `Nx1` | double | `ControllerDebug.DesiredYawMoment`，期望横摆力矩 |
 | 5 | `Controller.AllocatedYawMoment` | N·m | `Nx1` | double | `ControllerDebug.AllocatedYawMoment`，分配后的横摆力矩 |
-| 6 | `Controller.TVActive` | 1 | `Nx1` | boolean | `ControllerDebug.TVActive`，扭矩矢量控制激活状态 |
-| 7 | `Controller.TCActive` | 1 | `Nx1` | boolean | `ControllerDebug.TCActive`，牵引力控制激活状态 |
+| 6 | `Controller.TVActive` | 1 | `Nx1` | boolean | 横摆控制门控激活；实际 TV 交付需比较 `DesiredYawMoment` 与 `AllocatedYawMoment` |
+| 7 | `Controller.TCActive` | 1 | `Nx1` | 至少一个轮端 TC 滞环激活 |
 | 8 | `Controller.RegenActive` | 1 | `Nx1` | boolean | `ControllerDebug.RegenActive`，再生制动激活状态 |
 | 9 | `Controller.EnergyManagementActive` | 1 | `Nx1` | boolean | `ControllerDebug.EnergyManagementActive`，能量管理激活状态 |
 | 10 | `Controller.ControllerSaturated` | 1 | `Nx1` | boolean | `ControllerDebug.ControllerSaturated`，控制器限幅状态 |
@@ -208,7 +234,7 @@ result
 5. 车身状态：`Ux`、`Uy`、`YawRate`、`RollAngle`、`PitchAngle`、`Ax`、`Ay`、`Az`；
 6. 四轮运动学：轮速、转角、轮荷、滑移率、侧偏角和外倾角；
 7. 轮胎：`FxWheel`、`FyWheel` 和 `MuUtilization`；
-8. 驾驶员和执行器：转向、加速、驱动、摩擦制动、再生和功率请求；
+8. 驾驶员和执行器：转向、加速、驱动、摩擦制动、再生和功率请求；Schema 1.2 adaptive 还可绘制安全速度、边界净空、投影、复位与预见制动状态；
 9. 控制器：参考/实际横摆响应、力和力矩分配、控制激活与限幅状态；
 10. 动力系统和电池：电机转矩、转速、机械功率、电池电压、电流、功率和 SOC；
 11. 传感器：真值/测量对比及各有效位。
@@ -219,7 +245,7 @@ result
 
 `Metrics` 可从上述时序字段计算圈速/赛项时间、最大纵横向加速度、最大摩擦利用率、电池能量、边界违规、车辆包络违规、横向误差 RMS 和控制器限幅比例等标量指标。派生指标必须保留计算公式或实现入口，并明确积分或统计的时间范围。
 
-`Meta` 至少保存 Schema 版本、场景、赛项、数据集名称、七组顶层输出、缺失信号、非有限信号、维度问题、信号来源、MATLAB 版本和结果有效性。资格检查可以继续增加完赛状态、车辆包络和输出路径等元数据。
+`Meta` 至少保存 Schema 版本、场景、赛项、数据集名称、顶层输出列表、缺失信号、非有限信号、维度问题、信号来源、MATLAB 版本和结果有效性。Schema 1.1/1.2 adaptive 记录八组顶层输出；Schema 1.0 和非 adaptive 模型仍为七组。资格检查可以继续增加完赛状态、车辆包络和输出路径等元数据。
 
 ## 7. ResultVisualization 开环兼容字段
 
@@ -233,11 +259,11 @@ result
 | `Powertrain` | `MotorTorqueRequest`、`WheelAppliedTorque`、`ElectricalPowerUnconstrained`、`ElectricalPowerActual`、`SpeedLimitScale`、`TorqueSaturationResidual` |
 | `Battery` | `AllowedElectricalPower`、`PowerScale`、`DrivePowerClipped`、`RegenPowerClipped` |
 
-这些字段继续用于开环组件验证，但不计入本文件第 4 节的 82 个闭环时序字段。若未来将其纳入闭环标准，应同时更新结果初始化器、信号映射、完整性检查、绘图入口和 Schema 版本。
+这些字段继续用于开环组件验证，不计入本文件第 4 节的 100/96/82 个闭环 Schema 时序字段。若未来将其纳入闭环标准，应同时更新结果初始化器、信号映射、完整性检查、绘图入口和 Schema 版本。
 
 ## 8. 完整性标准
 
-- 第 4 节 82 个字段的名称、单位和维度与实际保存结果一致；
+- Schema 1.2 的 100 个字段、Schema 1.1 的 96 个字段或 Schema 1.0 的 82 个字段，其名称、单位和维度均与实际保存结果一致；
 - `Time` 严格递增，所有非空时序字段的第一维等于 `numel(Time)`；
 - 四轮字段统一为 `Nx4`，列顺序固定为 `[FL, FR, RL, RR]`；
 - 出现信号缺失、时间不单调、非有限值或维度错误时，结果标记为无效并给出原因；

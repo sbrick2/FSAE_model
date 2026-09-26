@@ -24,17 +24,20 @@
 | `Sensor` | In | `Bus: SensorBus` | 5 ms 暂定 | `y` | 驾驶员可用车辆测量 |
 | `DriverCommand` | Out | `Bus: DriverCommandBus` | 10 ms 暂定 | 输出 | 转向、加速和制动需求 |
 
-`AdaptiveAutocrossDriver.slx` 使用同一个输出合同，但输入改为：
+`AdaptiveAutocrossDriver.slx` 的外部合同为两个输入和两个输出：
 
 | 端口 | 方向 | 类型 | 速率 | 分类 | 说明 |
 |---|---|---|---:|---|---|
-| `TrackData` | In | `Bus: PathTrackingTrackDataBus` | 10 ms | 输入 | 完整中心线几何、曲率和左右半宽；`ReferenceSpeed` 元素明确不读取 |
+| `TrackData` | In | `Bus: PathTrackingTrackDataBus` | 10 ms | 输入 | 完整中心线几何、曲率和左右半宽；adaptive 模式读取 `ReferenceSpeed` 作为能力上限 |
 | `Sensor` | In | `Bus: SensorBus` | 5 ms 暂定 | `y` | 位姿、速度和 IMU 测量 |
 | `DriverCommand` | Out | `Bus: DriverCommandBus` | 10 ms | 输出 | 与现有 TorqueVectoring 控制器兼容的转向、加减速及功能开关 |
+| `DriverDebug` | Out | `Bus: DriverDebugBus` | 10 ms | `z` | 自适应驾驶员诊断和显式状态生命周期；不进入控制器或 Plant |
 
 该模型在 `FSAE_AdaptiveAutocross_7DOF.slx` 和
 `FSAE_AdaptiveAutocross_10DOF.slx` 中使用，不改变原
 `DriverModel/TorqueVectoringPathTrackingDriver` 的 `TrackReferenceBus` 合同。
+两套 adaptive 顶层把 `DriverDebug` 追加为第 8 个顶层输出；既有前 7 个顶层输出的名称和
+顺序不变。
 
 ### 2.2 `VehicleController.slx`
 
@@ -46,11 +49,16 @@
 | `ActuatorCommand` | Out | `Bus: ActuatorCommandBus` | 1–5 ms 暂定 | `u` | 最终执行器命令 |
 | `ControllerDebug` | Out | `Bus: ControllerDebugBus` | 5 ms 暂定 | `z` | 调试量，不进入 Plant |
 
+reference-speed 顶层继续使用 `TorqueVectoringVehicleController`；两个
+`FSAE_AdaptiveAutocross_<7DOF|10DOF>` 顶层使用接口相同的
+`UnifiedControlVehicleController`。后者以显式 5 ms 离散 `YawController` 生成
+横摆力矩请求，再由 `TorqueAllocator` 同时处理 TV、TC、再生、轮胎估算、功率和
+转矩变化率约束。该选择不改变任何 Bus 字段、类型或顺序。
+
 `TorqueVectoringVehicleController` 仅在驾驶员请求再生、执行器使能且
-`PowertrainState.BatterySOC < Battery.SOCUpperLimit` 时向分配器使能再生。
-达到 SOC 上限时，分配器按“再生禁用”处理负纵向力，由
-`FrictionBrakeTorqueRequest` 接管，避免 Plant 裁剪再生后出现制动力缺口。
-该门控不改变任何 Bus 字段、类型或顺序。
+`PowertrainState.BatterySOC < Battery.SOCUpperLimit` 时向旧分配器使能再生；达到
+SOC 上限时由摩擦制动接管负纵向力。UnifiedControl 采用同一外部合同，但在统一
+分配器内部完成该约束组合。
 
 ### 2.3 `VehiclePlant.slx`
 
@@ -97,6 +105,33 @@
 | `EnableRegen` | 1 | boolean | 1 | false | 再生制动使能 |
 | `EnableEnergyManagement` | 1 | boolean | 1 | false | 能量管理使能 |
 | `DriverMode` | 1 | uint8 | 1 | 0 | 0 Disabled, 1 OpenLoop, 2 PathTracking, 3 Replay |
+
+### 4.1 `DriverDebugBus`
+
+`DriverDebugBus` 是 adaptive 驾驶员的只读 `z` 诊断总线，不得连接到控制器或 Plant。其
+`ResetActive` 对应内部一拍的启动复位；所有 `State*` 字段都是当前离散控制状态的可观测
+副本，而非可外部写入的初始化接口。
+
+| 元素 | 维度 | 类型 | 单位 | 默认值 | 说明 |
+|---|---:|---|---|---:|---|
+| `SafeSpeed` | 1 | double | m/s | 0 | 当前安全速度上限 |
+| `LateralError` | 1 | double | m | 0 | 相对控制参考线横向误差 |
+| `HeadingError` | 1 | double | rad | 0 | 相对控制参考航向误差 |
+| `BoundaryMargin` | 1 | double | m | 0 | 车辆包络最小边界净空 |
+| `TargetCurvature` | 1 | double | 1/m | 0 | 控制目标曲率 |
+| `LimitingCurvature` | 1 | double | 1/m | 0 | 速度约束采用的限制曲率 |
+| `LateralUtilization` | 1 | double | 1 | 0 | 横向能力利用率 |
+| `ProjectedX` | 1 | double | m | 0 | 物理中心线与参考路径混合后的控制投影全局 X |
+| `ProjectedY` | 1 | double | m | 0 | 物理中心线与参考路径混合后的控制投影全局 Y |
+| `ResetActive` | 1 | boolean | 1 | false | 启动复位控制周期为 true |
+| `StatePreviousIndex` | 1 | double | 1 | 0 | 投影搜索起始索引状态 |
+| `StatePreviousReferenceIndex` | 1 | double | 1 | 0 | 参考路径索引状态 |
+| `StatePreviousSteering` | 1 | double | rad | 0 | 上一控制周期转向请求 |
+| `StateSpeedIntegrator` | 1 | double | m/s^2 | 0 | 速度 PI 积分器状态 |
+| `PreviewBrakingDeceleration` | 1 | double | m/s^2 | 0 | 当前预见窗口内的最大所需减速度 |
+| `PreviewBrakingDistance` | 1 | double | m | 0 | 产生最大所需减速度的前方距离 |
+| `PreviewBrakingTargetSpeed` | 1 | double | m/s | 0 | 限制预见制动的前方参考速度 |
+| `PreviewBrakingActive` | 1 | boolean | 1 | false | 预见制动前馈当前是否生效 |
 
 ## 5. `ActuatorCommandBus`
 
@@ -255,6 +290,7 @@ Data Dictionary 必须包含：
 ```text
 DefaultTrackReferenceBus
 DefaultDriverCommandBus
+DefaultDriverDebugBus
 DefaultActuatorCommandBus
 DefaultVehicleStateBus
 DefaultWheelStateBus
@@ -374,3 +410,9 @@ UnifiedControl 保持 `DriverCommandBus`、`SensorBus`、`PowertrainStateBus`、
 UnifiedControl 控制器只从测量 Bus 和共享参数估算滑移、轮荷与轮胎余量，不读取
 `VehicleStateBus` 的真实轮胎力或真实轮荷。完整合同见
 [UnifiedControl 系统规格](controller/specs/unified-control-allocation/system.md)。
+
+TC 的接通/断开/完全削减阈值当前为 `0.12/0.08/0.25`。安全降扭允许突破常规
+电机降扭斜率，避免全削减请求与上一拍高扭矩下限冲突；解除 TC 后的扭矩恢复仍受
+正常变化率约束。`Controller.TVActive` 只说明横摆环门控已打开，实际 TV 交付必须
+联合检查 `DesiredYawMoment` 与 `AllocatedYawMoment`；`Controller.TCActive` 表示至少
+一个轮端 TC 滞环处于激活状态。

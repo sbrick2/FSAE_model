@@ -73,6 +73,78 @@ classdef AdaptiveAutocrossDriverStepTest < matlab.unittest.TestCase
                 baseCommand.LongitudinalAccelerationRequest + 0.10);
         end
 
+        function testPreviewBrakingStartsBeforeCurrentOverspeed(testCase)
+            track = AdaptiveAutocrossDriverStepTest.makeTrack(true, 0.0);
+            track.ReferenceSpeed(31:end) = 5.0;
+            sensor = AdaptiveAutocrossDriverStepTest.makeSensor(10.0);
+            state = AdaptiveAutocrossDriverStepTest.makeState();
+            config = AdaptiveAutocrossDriverStepTest.makeConfig();
+
+            [command, ~, debug] = fsaeAdaptiveAutocrossDriverStep( ...
+                track, sensor, state, config);
+
+            testCase.verifyGreaterThan(debug.SafeSpeed, ...
+                sensor.LongitudinalSpeed);
+            testCase.verifyTrue(debug.PreviewBrakingActive);
+            testCase.verifyGreaterThan( ...
+                debug.PreviewBrakingDeceleration, 0.0);
+            testCase.verifyGreaterThan(debug.PreviewBrakingDistance, 0.0);
+            testCase.verifyEqual(debug.PreviewBrakingTargetSpeed, 5.0);
+            testCase.verifyLessThan( ...
+                command.LongitudinalAccelerationRequest, 0.0);
+            testCase.verifyGreaterThan(command.BrakePressureRequest, 0.0);
+        end
+
+        function testDisabledPreviewBrakingPreservesPositiveDemand(testCase)
+            track = AdaptiveAutocrossDriverStepTest.makeTrack(true, 0.0);
+            track.ReferenceSpeed(31:end) = 5.0;
+            sensor = AdaptiveAutocrossDriverStepTest.makeSensor(10.0);
+            state = AdaptiveAutocrossDriverStepTest.makeState();
+            config = AdaptiveAutocrossDriverStepTest.makeConfig();
+            config.PreviewBrakingEnabled = false;
+
+            [command, ~, debug] = fsaeAdaptiveAutocrossDriverStep( ...
+                track, sensor, state, config);
+
+            testCase.verifyFalse(debug.PreviewBrakingActive);
+            testCase.verifyEqual(debug.PreviewBrakingDeceleration, 0.0);
+            testCase.verifyGreaterThanOrEqual( ...
+                command.LongitudinalAccelerationRequest, 0.0);
+            testCase.verifyEqual(command.BrakePressureRequest, 0.0);
+        end
+
+        function testUnplannedZeroProfileUsesGeometryFallback(testCase)
+            track = AdaptiveAutocrossDriverStepTest.makeTrack(true, 0.0);
+            track.ReferenceSpeed(:) = 0.0;
+            sensor = AdaptiveAutocrossDriverStepTest.makeSensor(0.2);
+            state = AdaptiveAutocrossDriverStepTest.makeState();
+            config = AdaptiveAutocrossDriverStepTest.makeConfig();
+
+            [command, ~, debug] = fsaeAdaptiveAutocrossDriverStep( ...
+                track, sensor, state, config);
+
+            testCase.verifyFalse(debug.PreviewBrakingActive);
+            testCase.verifyEqual(debug.PreviewBrakingDeceleration, 0.0);
+            testCase.verifyGreaterThan( ...
+                command.LongitudinalAccelerationRequest, 0.0);
+            testCase.verifyEqual(command.BrakePressureRequest, 0.0);
+        end
+
+        function testTVAndTCEnablesFollowConfiguration(testCase)
+            track = AdaptiveAutocrossDriverStepTest.makeTrack(true, 0.0);
+            sensor = AdaptiveAutocrossDriverStepTest.makeSensor(10.0);
+            state = AdaptiveAutocrossDriverStepTest.makeState();
+            config = AdaptiveAutocrossDriverStepTest.makeConfig();
+            config.EnableTV = false;
+            config.EnableTC = false;
+
+            command = fsaeAdaptiveAutocrossDriverStep( ...
+                track, sensor, state, config);
+
+            testCase.verifyFalse(command.EnableTV);
+            testCase.verifyFalse(command.EnableTC);
+        end
+
         function testOpenTrackPreviewDoesNotWrapToStart(testCase)
             track = AdaptiveAutocrossDriverStepTest.makeTrack(false, 0.0);
             track.Heading(1:10) = 0.5 * pi;
@@ -105,6 +177,67 @@ classdef AdaptiveAutocrossDriverStepTest < matlab.unittest.TestCase
             testCase.verifyLessThan( ...
                 command.LongitudinalAccelerationRequest, 0.0);
             testCase.verifyGreaterThan(command.BrakePressureRequest, 0.0);
+        end
+
+        function testDebugIsFiniteAndConsistentForUsableTrack(testCase)
+            track = AdaptiveAutocrossDriverStepTest.makeTrack(true, 0.0);
+            sensor = AdaptiveAutocrossDriverStepTest.makeSensor(10.0);
+            state = AdaptiveAutocrossDriverStepTest.makeState();
+            config = AdaptiveAutocrossDriverStepTest.makeConfig();
+
+            [~, ~, debug] = fsaeAdaptiveAutocrossDriverStep( ...
+                track, sensor, state, config);
+
+            expectedFields = ["SafeSpeed", "LateralError", ...
+                "HeadingError", "BoundaryMargin", "TargetCurvature", ...
+                "LimitingCurvature", "LateralUtilization", ...
+                "ProjectedX", "ProjectedY", ...
+                "PreviewBrakingDeceleration", ...
+                "PreviewBrakingDistance", ...
+                "PreviewBrakingTargetSpeed", ...
+                "PreviewBrakingActive"];
+            testCase.verifyEqual(string(fieldnames(debug)), expectedFields.');
+            values = cell2mat(struct2cell(debug));
+            testCase.verifyTrue(all(isfinite(values)));
+            testCase.verifyGreaterThan(debug.SafeSpeed, 0.0);
+            testCase.verifyLessThanOrEqual( ...
+                debug.SafeSpeed, config.MaximumSpeed);
+            testCase.verifyGreaterThan(debug.BoundaryMargin, 0.0);
+            testCase.verifyEqual(debug.TargetCurvature, 0.0, AbsTol = 1.0e-12);
+            testCase.verifyEqual( ...
+                debug.LimitingCurvature, 0.0, AbsTol = 1.0e-12);
+            testCase.verifyEqual( ...
+                debug.LateralUtilization, 0.0, AbsTol = 1.0e-12);
+            testCase.verifyEqual(debug.ProjectedX, sensor.PositionX, ...
+                AbsTol = 1.0e-12);
+            testCase.verifyEqual(debug.ProjectedY, 0.10, ...
+                AbsTol = 1.0e-12);
+            testCase.verifyFalse(debug.PreviewBrakingActive);
+        end
+
+        function testInvalidPoseZerosDebugAndUsesFailSafe(testCase)
+            track = AdaptiveAutocrossDriverStepTest.makeTrack(true, 0.0);
+            sensor = AdaptiveAutocrossDriverStepTest.makeSensor(10.0);
+            sensor.PoseValid = false;
+            state = AdaptiveAutocrossDriverStepTest.makeState();
+            config = AdaptiveAutocrossDriverStepTest.makeConfig();
+
+            [command, nextState, debug] = fsaeAdaptiveAutocrossDriverStep( ...
+                track, sensor, state, config);
+
+            testCase.verifyEqual(cell2mat(struct2cell(debug)), zeros(13, 1));
+            testCase.verifyEqual(command.LongitudinalAccelerationRequest, ...
+                -config.MaximumDeceleration);
+            testCase.verifyEqual(command.BrakePressureRequest, ...
+                config.MaximumDeceleration * ...
+                config.BrakePressurePerAcceleration);
+            testCase.verifyTrue(command.EnableTC);
+            testCase.verifyTrue(command.EnableRegen);
+            testCase.verifyEqual(command.DriverMode, uint8(2));
+            testCase.verifyEqual(nextState.PreviousIndex, 1.0);
+            testCase.verifyEqual(nextState.PreviousReferenceIndex, 1.0);
+            testCase.verifyEqual(nextState.PreviousSteering, 0.0);
+            testCase.verifyEqual(nextState.SpeedIntegrator, 0.0);
         end
     end
 
@@ -193,6 +326,10 @@ classdef AdaptiveAutocrossDriverStepTest < matlab.unittest.TestCase
                 "SpeedKi", 0.20, ...
                 "SpeedFeedforwardGain", 0.60, ...
                 "ExitSpeedFeedforwardGain", 0.78, ...
+                "PreviewBrakingEnabled", true, ...
+                "PreviewBrakingActivationDistance", 45.0, ...
+                "PreviewBrakeFeedforwardGain", 0.65, ...
+                "PreviewBrakingDecelerationScale", 0.90, ...
                 "AntiWindupGain", 1.0, ...
                 "ReferencePathCurvatureBlendStart", 0.15, ...
                 "ReferencePathCurvatureBlendEnd", 0.30, ...
@@ -201,6 +338,7 @@ classdef AdaptiveAutocrossDriverStepTest < matlab.unittest.TestCase
                 "BoundaryReserve", 0.50, ...
                 "EmergencyBoundaryMargin", 0.25, ...
                 "EnableTV", true, ...
+                "EnableTC", true, ...
                 "BrakePressurePerAcceleration", 1.0e4);
         end
     end

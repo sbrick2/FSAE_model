@@ -156,9 +156,9 @@ VehicleController.slx
 - 反馈极性和横摆力矩符号；
 - 所有除法、查表和低速运算的保护。
 
-UnifiedControl 采用隔离集成文件 `UnifiedControlVehicleController.slx` 和
-`FSAE_UnifiedControl_ClosedLoop.slx`，并由 `UnifiedControlPathTrackingDriver.slx` 注入四个场景功能
-开关。`TorqueAllocator.slx` 在单次投影计算中同时处理电机、轮胎估算、TC、
+UnifiedControl 采用 `UnifiedControlVehicleController.slx` 和
+`FSAE_UnifiedControl_ClosedLoop.slx`；两个 AdaptiveAutocross 7DOF/10DOF 顶层也复用
+该控制器，并从驾驶员配置显式传入 TV/TC 开关。`TorqueAllocator.slx` 在单次投影计算中同时处理电机、轮胎估算、TC、
 转矩变化率与驱动功率约束，再由执行器混合层分配再生和剩余摩擦制动；它不会让
 TV、TC、再生和能量管理依次覆盖彼此输出。Stateflow 仅持有前一拍电机转矩和
 TC 滞环状态，估算、投影和混合函数保持独立可测。
@@ -169,7 +169,7 @@ TC 滞环状态，估算、投影和混合函数保持独立可测。
 |---|---|---|
 | `VehiclePlantVariant` | `Vehicle7DOF`, `Vehicle10DOF` | 7DOF 生产基线；10DOF 当前通过隔离 Vehicle10DOF Plant 选择 |
 | `TireModelVariant` | `TireSimple`, `TireMF62`, `TireTTCMap` | `TireMF62` |
-| `DriverVariant` | `DriverOpenLoop`, `DriverPathTracking`, `DriverReplay` | 路径跟踪；UnifiedControl 使用隔离的 `UnifiedControlPathTrackingDriver` |
+| `DriverVariant` | `DriverOpenLoop`, `DriverPathTracking`, `DriverReplay` | reference-speed 使用 TorqueVectoringPathTrackingDriver；adaptive 使用 AdaptiveAutocrossDriver + UnifiedControl |
 | `FeedbackVariant` | `TruthFeedback`, `SensorEstimatorFeedback` | 当前闭环使用传感器边界内的 truth-feedback 基线 |
 
 Variant 控制变量存放于 `VehicleData.sldd`，不得散落在 Base Workspace。
