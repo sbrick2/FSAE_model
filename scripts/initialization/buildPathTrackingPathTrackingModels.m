@@ -366,7 +366,7 @@ function installPathTrackingTrackDataBus(dictionaryPath)
 dictionary = Simulink.data.dictionary.open(dictionaryPath);
 cleanup = onCleanup(@() close(dictionary));
 designData = getSection(dictionary, "Design Data");
-bus = createTrackDataBus(4096);
+bus = createTrackDataBus(262144);
 try
     entry = getEntry(designData, "PathTrackingTrackDataBus");
     setValue(entry, bus);

@@ -2,7 +2,7 @@
 
 > 状态：完成  
 > 日期：2026-07-31  
-> 环境：MATLAB / Simulink R2026a
+> 环境：MATLAB / Simulink R2026b
 
 ## 1. 范围与交付
 

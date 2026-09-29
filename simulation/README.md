@@ -49,7 +49,7 @@ results/
 
 ## 1. 运行前准备
 
-推荐使用 MATLAB / Simulink R2026a，并从项目根目录打开 MATLAB Project：
+推荐使用 MATLAB / Simulink R2026b，并从项目根目录打开 MATLAB Project：
 
 ```matlab
 project = openProject(fullfile(pwd, "FSAE_Simulation.prj"));

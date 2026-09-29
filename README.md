@@ -1,6 +1,6 @@
 # FSAE 整车仿真平台
 
-面向四轮独立驱动 FSAE 赛车的 MATLAB / Simulink 整车仿真平台，强调模块可替换、接口可验证和参数来源可追踪。目标环境为 MATLAB / Simulink R2026a。
+面向四轮独立驱动 FSAE 赛车的 MATLAB / Simulink 整车仿真平台，强调模块可替换、接口可验证和参数来源可追踪。目标环境为 MATLAB / Simulink R2026b，项目模型统一保存为 R2026b 格式。
 
 ## 1. 项目简介
 

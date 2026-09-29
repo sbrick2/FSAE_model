@@ -3,7 +3,7 @@ function data = makePathTrackingTrackData(track, maxSamples)
 
 arguments
     track (1, 1) struct
-    maxSamples (1, 1) double {mustBeInteger, mustBePositive} = 4096
+    maxSamples (1, 1) double {mustBeInteger, mustBePositive} = 262144
 end
 
 sampleCount = numel(track.X);

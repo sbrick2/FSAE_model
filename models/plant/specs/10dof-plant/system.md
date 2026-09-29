@@ -2,7 +2,7 @@
 
 > 状态：功能基线已实现，实车校准待完成  
 > 保真度：L3 解析刚体/查表阻尼基线  
-> 适用环境：MATLAB / Simulink R2026a
+> 适用环境：MATLAB / Simulink R2026b
 
 ## 1. 目标与边界
 
@@ -78,4 +78,3 @@ Vehicle10DOF 使用参数表直接给出的前/后单轮悬架线刚度 `76.74/6
 
 - MathWorks [Automotive Suspension](https://www.mathworks.com/help/simulink/slref/automotive-suspension.html)：悬架力与车辆纵/横/垂向运动耦合的参考边界。
 - MathWorks [Passenger Vehicle Dynamics Models](https://www.mathworks.com/help/vdynblks/ug/passenger-vehicle-dynamics-models.html)：车辆动力学模型分层和自由度范围参考。
-

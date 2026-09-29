@@ -2,7 +2,7 @@
 
 > 状态：UnifiedControl 扩展版
 > 更新日期：2026-08-02
-> MATLAB / Simulink：R2026a
+> MATLAB / Simulink：R2026b
 > 上位计划：[FSAE 整车仿真模型开发蓝图](../ROADMAP.md)
 
 ## 1. 架构目标

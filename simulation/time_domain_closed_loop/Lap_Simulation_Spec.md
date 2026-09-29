@@ -2,7 +2,7 @@
 
 > 状态：已实施；支持 7DOF/10DOF 与两类驾驶员独立选择
 > 更新日期：2026-09-23
-> 目标环境：MATLAB / Simulink R2026a  
+> 目标环境：MATLAB / Simulink R2026b
 > 适用项目：`FSAE_Simulation.prj`
 
 ## 1. 文档目的
@@ -235,6 +235,8 @@ cfg.Output.Overwrite = false;
 | `endurance` | `createPathTrackingEnduranceScenario` | 从 2024 FSEC 手册示意图提取并归一化的 1 km 逆时针单圈 | `Track.NumberOfLaps` |
 
 默认赛道原图为 `scenarios/Endurance/assets/2024_fsec_endurance_track.png`。场景函数按固定 ROI、起点、颜色阈值和平滑距离重建中心线，因此默认和非默认采样距离都不再依赖本机 `autocross_track_map.csv`。自定义 `Track.ImagePath` 仍须指向有效文件。来源和提取假设见 [`data/TrackData/README.md`](../../data/TrackData/README.md)。
+
+时域闭环的 `PathTrackingTrackDataBus` 最多容纳 262144 个赛道采样点，数据封装、数据字典及顶层模型的默认赛道数据使用相同容量。该容量限制的是赛道离散点数；有效点数由 `SampleCount` 指定，不限制时域求解器步数或输出记录数。13 个 double 数组的一份固定容量赛道数据约占 26 MiB。
 
 Skidpad 几何按 Formula SAE Rules 2026 D.10.1–D.10.2 建模：圆心距
 18.25 m、内/外圆直径 15.25/21.25 m、通道宽 3.0 m，行驶顺序为入口、
@@ -516,7 +518,7 @@ Track.Progress
 - 错误信息应说明无效参数名、收到的值和允许值；
 - 不使用硬编码绝对项目路径，项目根目录通过当前文件位置或 `currentProject` 获取；
 - 路径拼接统一使用 `fullfile`；
-- MATLAB 代码保持 R2026a 兼容。
+- MATLAB 代码与模型文件使用 R2026b。
 
 ## 10. 预期使用方法
 
@@ -617,7 +619,7 @@ run(fullfile(projectRoot, "simulation", "time_domain_closed_loop", ...
 
 尚需在实现前验证：
 
-- R2026a 中最适合当前模型的异步仿真控制接口；
+- R2026b 中最适合当前模型的异步仿真控制接口；
 - 仿真运行期间读取最新 `VehicleState` 数据的接口和更新频率；
 - 仿真中止、图窗关闭和异常路径下的清理行为。
 

@@ -20,7 +20,7 @@ braking without changing the frozen project buses.
 | G1 | Separate constraint estimation, force allocation, and actuator mixing in the model documentation and function-level code |
 | G2 | Keep a single state owner for prior motor torque and TC hysteresis |
 | G3 | Use only measured/estimated controller signals; never tire-force truth |
-| C1 | 5 ms single-rate, fixed-size arrays, R2026a |
+| C1 | 5 ms single-rate, fixed-size arrays, R2026b |
 | C2 | Existing Bus definitions remain unchanged |
 | C3 | Current Plant supports only fixed-proportion total hydraulic braking |
 | C4 | Current Vehicle10DOF physical calibration remains uncertain; UnifiedControl uses traceable placeholders where required |
