@@ -41,7 +41,7 @@ initProject();
 app = launchFSAESimulationApp();
 ```
 
-GUI 包含“车辆参数”“准静态”和“时域闭环”三个主要模块。原有脚本入口仍可独立运行。
+GUI 包含“准静态”“时域闭环”“赛事回放”和“车辆参数”四个主要模块。在“时域闭环 → 历史结果”加载结果后，切换到“赛事回放”即可播放，赛道自动从运行快照或对应赛事文件加载。回放页也支持直接选择结果文件，详见 [赛事回放使用说明](simulation/time_domain_closed_loop/plotting/RaceReplay.md)。原有脚本入口仍可独立运行。
 
 ## 4. 主要入口
 

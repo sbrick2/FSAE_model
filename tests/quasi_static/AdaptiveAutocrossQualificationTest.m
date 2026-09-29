@@ -34,6 +34,57 @@ classdef AdaptiveAutocrossQualificationTest < matlab.unittest.TestCase
                 report.FailedChecks == "GGVLapTimeRatioWithinLimit"));
         end
 
+        function testUnboundedLapTimeRatioIsDiagnostic(testCase)
+            result = AdaptiveAutocrossQualificationTest.makeResult(1.60);
+            result.Metrics.MaximumAllowedGGVLapTimeRatio = Inf;
+
+            report = validateAdaptiveAutocrossResult( ...
+                result, ThrowOnFailure = false);
+
+            testCase.verifyTrue(report.Passed);
+            testCase.verifyTrue(report.Checks.GGVLapTimeRatioWithinLimit);
+            testCase.verifyFalse(report.GGVLapTimeRatioRequired);
+        end
+
+        function testUnboundedRatioStillRequiresFiniteLapTime(testCase)
+            result = AdaptiveAutocrossQualificationTest.makeResult(1.60);
+            result.Metrics.MaximumAllowedGGVLapTimeRatio = Inf;
+            result.Metrics.LapTime = Inf;
+            result.Metrics.GGVLapTimeRatio = Inf;
+
+            report = validateAdaptiveAutocrossResult( ...
+                result, ThrowOnFailure = false);
+
+            testCase.verifyFalse(report.Passed);
+            testCase.verifyFalse(report.Checks.FiniteLapTime);
+            testCase.verifyFalse(report.Checks.FiniteGGVLapTimeRatio);
+        end
+
+        function testUnboundedRatioStillRequiresCompleteLap(testCase)
+            result = AdaptiveAutocrossQualificationTest.makeResult(1.60);
+            result.Metrics.MaximumAllowedGGVLapTimeRatio = Inf;
+            result.Meta.Completed = false;
+
+            report = validateAdaptiveAutocrossResult( ...
+                result, ThrowOnFailure = false);
+
+            testCase.verifyFalse(report.Passed);
+            testCase.verifyFalse(report.Checks.Completed);
+        end
+
+        function testMissingRatioLimitDoesNotDisableGate(testCase)
+            result = AdaptiveAutocrossQualificationTest.makeResult(1.60);
+            result.Metrics = rmfield(result.Metrics, ...
+                "MaximumAllowedGGVLapTimeRatio");
+
+            report = validateAdaptiveAutocrossResult( ...
+                result, ThrowOnFailure = false);
+
+            testCase.verifyFalse(report.Passed);
+            testCase.verifyTrue(report.GGVLapTimeRatioRequired);
+            testCase.verifyFalse(report.Checks.GGVLapTimeRatioWithinLimit);
+        end
+
         function testOpenTrackDoesNotUseAutocrossRatioGate(testCase)
             result = AdaptiveAutocrossQualificationTest.makeResult(1.30);
             result.Meta.TrackIsClosed = false;

@@ -9,12 +9,14 @@ function output = saveLapSimulationResults(result, scenario, cfg, options)
 %
 %   可选参数：
 %       SimulationOutput  原始 Simulink.SimulationOutput
+%       ReplaySnapshot    当次运行开始前捕获的回放快照；不读取当前参数补造历史快照
 
 arguments
     result (1, 1) struct
     scenario (1, 1) struct
     cfg (1, 1) struct
     options.SimulationOutput = []
+    options.ReplaySnapshot (1, 1) struct = struct
 end
 
 projectRoot = string(fileparts(fileparts(fileparts(mfilename("fullpath")))));
@@ -45,6 +47,9 @@ result.Meta.OutputFolder = string(runFolder);
 result.Meta.ResultFile = string(resultPath);
 result.Meta.SavedAt = string(datetime("now", ...
     "Format", "yyyy-MM-dd'T'HH:mm:ss"));
+if ~isempty(fieldnames(options.ReplaySnapshot))
+    result.Meta.Replay = options.ReplaySnapshot;
+end
 save(char(resultPath), "result", "-v7.3");
 
 if cfg.Output.SaveRawSimulationOutput && ~isempty(options.SimulationOutput)

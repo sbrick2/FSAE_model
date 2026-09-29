@@ -532,7 +532,8 @@ end
 
 result.Time = result.Time(1:finishIndex, :);
 timeSeriesFields = ["Distance", "Track", "Vehicle", "Wheel", "Tire", ...
-    "Powertrain", "Battery", "Driver", "Actuator", "Controller", "Sensor"];
+    "Powertrain", "Battery", "Driver", "DriverDebug", "Actuator", ...
+    "Controller", "Sensor"];
 for fieldName = timeSeriesFields
     if isfield(result, fieldName)
         result.(fieldName) = truncateTimeSeriesValue( ...

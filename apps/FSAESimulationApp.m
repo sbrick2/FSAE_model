@@ -7,6 +7,9 @@ classdef FSAESimulationApp < handle
         QuasiStaticModuleTab
         TimeDomainModuleTab
         VehicleParameterModuleTab
+        RaceReplayTab
+        RaceReplayApp = []
+        RaceReplayResultLabel
         VehicleParameterGroupDropDown
         VehicleParameterSearchField
         VehicleParameterCountLabel
@@ -80,6 +83,7 @@ classdef FSAESimulationApp < handle
         OpenFolderButton
         OpenAnalysisButton
         DetailedAnalysisButton
+        RaceReplayButton
         AnalysisPlotTypeDropDown
         AnalysisXAxisDropDown
         AnalysisDropDown
@@ -105,6 +109,8 @@ classdef FSAESimulationApp < handle
         SelectedResultIndex (1, 1) double = NaN
         CurrentResult = struct
         CurrentResultFile (1, 1) string = ""
+        ReplayHost
+        ReplayPlaceholder
         QuasiResultFiles (:, 1) string = strings(0, 1)
         QuasiSelectedResultIndex (1, 1) double = NaN
         CurrentQuasiResult = struct
@@ -135,6 +141,9 @@ classdef FSAESimulationApp < handle
         function delete(app)
             %DELETE 关闭窗口；即使类被清除导致窗口句柄已失效，也不报错。
             try
+                if ~isempty(app.RaceReplayApp) && isvalid(app.RaceReplayApp)
+                    delete(app.RaceReplayApp);
+                end
                 figureHandle = app.UIFigure;
                 if ~isempty(figureHandle) && isvalid(figureHandle)
                     figureHandle.CloseRequestFcn = [];
@@ -372,6 +381,9 @@ classdef FSAESimulationApp < handle
 
         function loadResult(app, filePath)
             %LOADRESULT 加载结果并刷新摘要和轨迹页。
+            assert(isempty(app.RaceReplayApp) || ~isvalid(app.RaceReplayApp) || ...
+                ~ismember(app.RaceReplayApp.State, ["Exporting", "Closing"]), ...
+                "FSAE:App:ReplayBusy", "请先完成或取消视频导出，再切换结果。");
             filePath = string(filePath);
             [result, resolvedPath] = loadLapSimulationResult(filePath);
             app.CurrentResult = result;
@@ -381,6 +393,10 @@ classdef FSAESimulationApp < handle
             app.updateTimeAnalysisCatalog(result);
             app.StatusLabel.Text = char("已加载：" + resolvedPath);
             app.appendLog("加载结果：" + resolvedPath);
+            if (~isempty(app.RaceReplayApp) && isvalid(app.RaceReplayApp)) || ...
+                    app.ModuleTabGroup.SelectedTab == app.RaceReplayTab
+                app.updateRaceReplay(true);
+            end
         end
 
         function loadQuasiStaticResult(app, filePath)
@@ -440,8 +456,7 @@ classdef FSAESimulationApp < handle
                 "Visible", "off", ...
                 "Color", [0.96, 0.97, 0.99], ...
                 "Position", [80, 60, 1460, 860]);
-            app.UIFigure.CloseRequestFcn = ...
-                @(source, ~) FSAESimulationApp.closeFigure(source);
+            % 保留默认 closereq；修改类文件后旧匿名回调可能无法解析。
 
             moduleGrid = uigridlayout(app.UIFigure, [1, 1]);
             moduleGrid.Padding = [8, 8, 8, 8];
@@ -450,8 +465,22 @@ classdef FSAESimulationApp < handle
                 "Title", "准静态");
             app.TimeDomainModuleTab = uitab(app.ModuleTabGroup, ...
                 "Title", "时域闭环");
+            app.RaceReplayTab = uitab(app.ModuleTabGroup, "Title", "赛事回放");
             app.VehicleParameterModuleTab = uitab(app.ModuleTabGroup, ...
                 "Title", "车辆参数");
+            replayGrid = uigridlayout(app.RaceReplayTab, [2, 1], ...
+                RowHeight = {28, '1x'}, Padding = [4, 4, 4, 4]);
+            replayHeader = uigridlayout(replayGrid, [1, 2], ...
+                ColumnWidth = {'1x', 140}, Padding = [0, 0, 0, 0]);
+            replayHeader.Layout.Row = 1;
+            app.RaceReplayResultLabel = uilabel(replayHeader, ...
+                "Text", "尚未加载时域结果", "FontWeight", "bold");
+            uibutton(replayHeader, Text = "选择时域结果文件", ...
+                ButtonPushedFcn = @(~, ~) app.browseResult());
+            app.ReplayHost = uigridlayout(replayGrid, [1, 1], Padding = [0, 0, 0, 0]);
+            app.ReplayHost.Layout.Row = 2;
+            app.showReplayPlaceholder("在“时域闭环 → 历史结果”加载结果，或在此选择结果文件。赛道会自动加载。");
+            app.ModuleTabGroup.SelectionChangedFcn = @(~, ~) app.onModuleChanged();
 
             rootGrid = uigridlayout(app.TimeDomainModuleTab, [1, 2]);
             rootGrid.ColumnWidth = {350, '1x'};
@@ -1102,9 +1131,9 @@ classdef FSAESimulationApp < handle
                 "Items", {'车速 | Vehicle.Speed (m/s)'}, ...
                 "ItemsData", {'Vehicle.Speed'}, "Value", 'Vehicle.Speed');
 
-            analysisButtonGrid = uigridlayout(analysisGrid, [1, 2]);
+            analysisButtonGrid = uigridlayout(analysisGrid, [1, 3]);
             analysisButtonGrid.Layout.Row = 3;
-            analysisButtonGrid.ColumnWidth = {'1x', '1x'};
+            analysisButtonGrid.ColumnWidth = {'1x', '1x', '1x'};
             analysisButtonGrid.Padding = [0, 0, 0, 0];
             app.OpenAnalysisButton = uibutton(analysisButtonGrid, "push", ...
                 "Text", "绘制到界面", ...
@@ -1112,6 +1141,9 @@ classdef FSAESimulationApp < handle
             app.DetailedAnalysisButton = uibutton(analysisButtonGrid, "push", ...
                 "Text", "打开独立图窗", ...
                 "ButtonPushedFcn", @(~, ~) app.openAnalysis());
+            app.RaceReplayButton = uibutton(analysisButtonGrid, "push", ...
+                "Text", "赛事回放", ...
+                "ButtonPushedFcn", @(~, ~) app.openRaceReplay());
 
             app.AnalysisOutputTabGroup = uitabgroup(analysisGrid);
             app.AnalysisOutputTabGroup.Layout.Row = 4;
@@ -2343,6 +2375,64 @@ classdef FSAESimulationApp < handle
             end
         end
 
+        function openRaceReplay(app)
+            app.ModuleTabGroup.SelectedTab = app.RaceReplayTab;
+            app.updateRaceReplay(false);
+        end
+
+        function onModuleChanged(app)
+            if app.ModuleTabGroup.SelectedTab == app.RaceReplayTab
+                app.updateRaceReplay(false);
+            elseif ~isempty(app.RaceReplayApp) && isvalid(app.RaceReplayApp) && ...
+                    app.RaceReplayApp.State == "Playing"
+                app.RaceReplayApp.pausePlayback();
+            end
+        end
+
+        function updateRaceReplay(app, forceReload)
+            if isempty(fieldnames(app.CurrentResult)), return; end
+            app.RaceReplayResultLabel.Text = char("当前结果：" + app.CurrentResultFile);
+            app.RaceReplayResultLabel.Tooltip = char(app.CurrentResultFile);
+            try
+                if ~isempty(app.RaceReplayApp) && isvalid(app.RaceReplayApp)
+                    if forceReload || app.RaceReplayApp.Data.SourceFile ~= app.CurrentResultFile
+                        app.RaceReplayApp.loadResult(app.CurrentResult);
+                    end
+                else
+                    if ~isempty(app.ReplayPlaceholder) && isgraphics(app.ReplayPlaceholder)
+                        delete(app.ReplayPlaceholder);
+                    end
+                    app.ReplayPlaceholder = [];
+                    app.ReplayHost.RowHeight = {'1x'};
+                    replay = FSAERaceReplayApp(app.CurrentResult, ...
+                        Parent = app.ReplayHost, ProjectRoot = app.ProjectRoot);
+                    app.RaceReplayApp = replay;
+                end
+            catch exception
+                if ~isempty(app.RaceReplayApp) && isvalid(app.RaceReplayApp)
+                    delete(app.RaceReplayApp);
+                end
+                app.RaceReplayApp = [];
+                app.showReplayPlaceholder("该结果无法回放：" + string(exception.message));
+                app.appendLog("回放加载失败：" + string(exception.message));
+            end
+        end
+
+        function showReplayPlaceholder(app, message)
+            delete(app.ReplayHost.Children);
+            app.ReplayPlaceholder = uigridlayout(app.ReplayHost, [3, 1], ...
+                RowHeight = {'1x', 90, '1x'}, Padding = [20, 20, 20, 20]);
+            hint = uilabel(app.ReplayPlaceholder, Text = message, WordWrap = "on", ...
+                HorizontalAlignment = "center", FontSize = 16);
+            hint.Layout.Row = 2;
+            buttons = uigridlayout(app.ReplayPlaceholder, [1, 3], ...
+                ColumnWidth = {'1x', 200, '1x'}, RowHeight = {36}, Padding = [0, 0, 0, 0]);
+            buttons.Layout.Row = 3;
+            button = uibutton(buttons, Text = "选择时域结果文件", ...
+                ButtonPushedFcn = @(~, ~) app.browseResult());
+            button.Layout.Column = 2;
+        end
+
         function openLegacyAnalysis(app)
             if strlength(app.CurrentResultFile) == 0
                 uialert(app.UIFigure, "请先加载一个结果。", "没有结果");
@@ -2947,6 +3037,7 @@ classdef FSAESimulationApp < handle
                 fullfile(app.ProjectRoot, "scripts", "ggv")
                 fullfile(app.ProjectRoot, "scripts", "initialization")
                 fullfile(app.ProjectRoot, "scripts", "reporting")
+                fullfile(app.ProjectRoot, "scripts", "replay")
                 fullfile(app.ProjectRoot, "scripts", "simulation")
                 fullfile(app.ProjectRoot, "scripts", "track")
                 fullfile(app.ProjectRoot, "simulation", ...
@@ -2961,15 +3052,6 @@ classdef FSAESimulationApp < handle
     end
 
     methods (Static, Access = private)
-        function closeFigure(figureHandle)
-            %CLOSEFIGURE 关闭窗口本身，不依赖可能已失效的 app 对象。
-            if isempty(figureHandle) || ~isvalid(figureHandle)
-                return
-            end
-            figureHandle.CloseRequestFcn = [];
-            delete(figureHandle);
-        end
-
         function root = resolveProjectRoot(requestedRoot)
             root = string(requestedRoot);
             if strlength(root) == 0

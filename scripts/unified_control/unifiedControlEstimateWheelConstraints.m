@@ -44,19 +44,20 @@ frontLateralTransfer = safeMass * accelY * safeCGHeight * ...
 rearLateralTransfer = safeMass * accelY * safeCGHeight * ...
     (1.0 - rollFrontFraction) / safeTrackRear;
 
-normalLoad = [0.5 * (frontAxleLoad - frontLateralTransfer); ...
-    0.5 * (frontAxleLoad + frontLateralTransfer); ...
-    0.5 * (rearAxleLoad - rearLateralTransfer); ...
-    0.5 * (rearAxleLoad + rearLateralTransfer)];
-loadFloor = max(finiteOr(minimumNormalLoad, 0.0), 0.0);
-normalLoad = max(normalLoad, loadFloor);
-normalLoad = normalLoad .* (totalLoad / max(sum(normalLoad), 1.0e-6));
+% m*ay*h/track is the load moved from the inside wheel to the outside,
+% rather than their load difference. Only the axle load is halved.
+normalLoad = distributeWheelNormalLoads(frontAxleLoad, rearAxleLoad, ...
+    frontLateralTransfer, rearLateralTransfer, safeTrackFront, safeTrackRear);
+loadThreshold = max(finiteOr(minimumNormalLoad, 0.0), 0.0);
 
 mu = max(finiteOr(frictionEstimate, 0.0), 0.0);
 lateralUtilization = abs(accelY) / safeGravity;
 longitudinalMuAvailable = sqrt(max(mu * mu - ...
     lateralUtilization * lateralUtilization, 0.0));
 tireForceCapacity = longitudinalMuAvailable .* normalLoad;
+% A low-load or lifted wheel has no controllable force reserve; do not
+% manufacture contact force by raising its normal-load estimate to a floor.
+tireForceCapacity(normalLoad < loadThreshold) = 0.0;
 
 slipOn = max(finiteOr(tcSlipOn, 0.0), 0.0);
 slipOff = clamp(finiteOr(tcSlipOff, 0.0), 0.0, slipOn);

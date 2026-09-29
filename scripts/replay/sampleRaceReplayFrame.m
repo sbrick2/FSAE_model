@@ -1,0 +1,63 @@
+function frame = sampleRaceReplayFrame(data, time)
+%SAMPLERACEREPLAYFRAME Sample all panels on one clock, then derive values.
+arguments
+    data (1, 1) struct
+    time (1, 1) double {mustBeFinite}
+end
+time = min(max(time, data.Time(1)), data.Time(end));
+lower = find(data.Time <= time, 1, "last");
+upper = min(lower + 1, numel(data.Time));
+weight = 0;
+if upper > lower
+    weight = (time - data.Time(lower)) / (data.Time(upper) - data.Time(lower));
+end
+held = ["SteeringRequest", "AccelerationRequest", "DriveTorqueRequest", ...
+    "BrakePressureRequest", "AcceleratorPedalRequest", "BrakePedalRequest", ...
+    "LapIndex", "LapStartTime", "RoadGripScale", "RoadMuLimit"];
+signals = struct;
+for name = reshape(string(fieldnames(data.Signals)), 1, [])
+    values = data.Signals.(name);
+    value = values(lower, :);
+    if weight > 0 && ~any(name == held)
+        value = (1 - weight) * value + weight * values(upper, :);
+    end
+    signals.(name) = value;
+end
+frame = struct("Time", time, "Elapsed", time - data.Time(1), ...
+    "SampleIndex", lower, "SampleTime", data.Time(lower));
+frame.Vehicle = struct("X", signals.X, "Y", signals.Y, "Psi", signals.Psi, ...
+    "Speed", signals.Speed, "Ax", signals.Ax, "Ay", signals.Ay, ...
+    "Valid", all(isfinite([signals.X, signals.Y, signals.Psi])));
+frame.Wheel = struct("SteerAngle", signals.SteerAngle, ...
+    "NormalLoad", signals.NormalLoad, "CamberAngle", signals.CamberAngle, ...
+    "SlipRatio", signals.SlipRatio, "SlipAngle", signals.SlipAngle);
+frame.Tire = struct("Fx", signals.Fx, "Fy", signals.Fy, ...
+    "RecordedUtilization", signals.RecordedUtilization);
+metadata = data.TireMetadata;
+metadata.RoadGripScale = signals.RoadGripScale;
+metadata.RoadMuLimit = signals.RoadMuLimit;
+frame.Tire.Capacity = deriveRaceReplayTireCapacity( ...
+    frame.Wheel, frame.Tire, metadata, data.ContactThreshold);
+power = signals.RecordedMotorPower;
+derived = signals.MotorTorque .* signals.MotorOmega;
+valid = isfinite(derived);
+power(valid) = derived(valid);
+frame.Motor = struct("Torque", signals.MotorTorque, ...
+    "Omega", signals.MotorOmega, "RPM", signals.MotorOmega * 60 / (2 * pi), ...
+    "Power", power, "PowerDerived", valid, "TotalPower", sum(power));
+frame.BatteryPower = signals.BatteryPower;
+frame.Driver = struct("SteeringRequest", signals.SteeringRequest, ...
+    "AccelerationRequest", signals.AccelerationRequest, ...
+    "AcceleratorPedalRequest", signals.AcceleratorPedalRequest, ...
+    "BrakePedalRequest", signals.BrakePedalRequest, ...
+    "DriveTorqueRequest", signals.DriveTorqueRequest, ...
+    "BrakePressureRequest", signals.BrakePressureRequest);
+frame.Pedals = deriveRaceReplayDriverRequests(frame.Driver, data.Driver);
+frame.Track = struct("LapIndex", signals.LapIndex, "PathS", signals.PathS, ...
+    "Progress", signals.Progress, "LapTime", time - signals.LapStartTime, ...
+    "LapProgress", NaN);
+if ~isempty(fieldnames(data.Track)) && isfinite(data.Track.Length) && ...
+        data.Track.Length > 0 && isfinite(signals.PathS)
+    frame.Track.LapProgress = min(1, max(0, signals.PathS / data.Track.Length));
+end
+end

@@ -75,7 +75,7 @@ classdef AdaptiveAutocrossDriverStepTest < matlab.unittest.TestCase
 
         function testPreviewBrakingStartsBeforeCurrentOverspeed(testCase)
             track = AdaptiveAutocrossDriverStepTest.makeTrack(true, 0.0);
-            track.ReferenceSpeed(31:end) = 5.0;
+            track.ReferenceSpeed(17:end) = 5.0;
             sensor = AdaptiveAutocrossDriverStepTest.makeSensor(10.0);
             state = AdaptiveAutocrossDriverStepTest.makeState();
             config = AdaptiveAutocrossDriverStepTest.makeConfig();
@@ -95,9 +95,89 @@ classdef AdaptiveAutocrossDriverStepTest < matlab.unittest.TestCase
             testCase.verifyGreaterThan(command.BrakePressureRequest, 0.0);
         end
 
-        function testDisabledPreviewBrakingPreservesPositiveDemand(testCase)
+        function testDistantSlowTargetPreservesAcceleration(testCase)
             track = AdaptiveAutocrossDriverStepTest.makeTrack(true, 0.0);
             track.ReferenceSpeed(31:end) = 5.0;
+            sensor = AdaptiveAutocrossDriverStepTest.makeSensor(10.0);
+            state = AdaptiveAutocrossDriverStepTest.makeState();
+            config = AdaptiveAutocrossDriverStepTest.makeConfig();
+
+            [command, ~, debug] = fsaeAdaptiveAutocrossDriverStep( ...
+                track, sensor, state, config);
+
+            testCase.verifyFalse(debug.PreviewBrakingActive);
+            testCase.verifyGreaterThan(debug.PreviewBrakingDeceleration, 0.0);
+            testCase.verifyLessThan(debug.PreviewBrakingDeceleration, ...
+                config.PlanningDeceleration * ...
+                config.PreviewBrakingDecelerationScale);
+            testCase.verifyGreaterThan( ...
+                command.LongitudinalAccelerationRequest, 0.0);
+            testCase.verifyEqual(command.BrakePressureRequest, 0.0);
+        end
+
+        function testPreviewBrakeRampsNearEnvelopeBoundary(testCase)
+            track = AdaptiveAutocrossDriverStepTest.makeTrack(true, 0.0);
+            track.ReferenceSpeed(17:end) = 5.0;
+            config = AdaptiveAutocrossDriverStepTest.makeConfig();
+            brakingLimit = config.PlanningDeceleration * ...
+                config.PreviewBrakingDecelerationScale;
+            envelopeSpeed = sqrt(5.0^2 + 2.0 * brakingLimit * 6.0);
+            sensor = AdaptiveAutocrossDriverStepTest.makeSensor( ...
+                envelopeSpeed + 0.01);
+            state = AdaptiveAutocrossDriverStepTest.makeState();
+
+            [command, ~, debug] = fsaeAdaptiveAutocrossDriverStep( ...
+                track, sensor, state, config);
+
+            testCase.verifyTrue(debug.PreviewBrakingActive);
+            testCase.verifyLessThan(command.LongitudinalAccelerationRequest, 0.0);
+            testCase.verifyGreaterThanOrEqual( ...
+                command.LongitudinalAccelerationRequest, ...
+                -config.PreviewBrakeFeedforwardGain * config.SpeedKp * 0.011);
+        end
+
+        function testStandingStartProfileDoesNotBrakeAfterFinish(testCase)
+            track = AdaptiveAutocrossDriverStepTest.makeTrack(true, 0.0);
+            track.IsClosed = true;
+            track.ReferenceSpeed(1:10) = 5.0;
+            sensor = AdaptiveAutocrossDriverStepTest.makeSensor(10.0);
+            sensor.PositionX = 75.0;
+            state = AdaptiveAutocrossDriverStepTest.makeState();
+            state.PreviousIndex = 76.0;
+            state.PreviousReferenceIndex = 76.0;
+            config = AdaptiveAutocrossDriverStepTest.makeConfig();
+
+            [command, ~, debug] = fsaeAdaptiveAutocrossDriverStep( ...
+                track, sensor, state, config);
+
+            testCase.verifyFalse(debug.PreviewBrakingActive);
+            testCase.verifyGreaterThan( ...
+                command.LongitudinalAccelerationRequest, 0.0);
+        end
+
+        function testCyclicProfileKeepsPreviewAcrossSeam(testCase)
+            track = AdaptiveAutocrossDriverStepTest.makeTrack(true, 0.0);
+            track.IsClosed = true;
+            track.ReferenceSpeed(1:10) = 5.0;
+            track.ReferenceSpeed(end) = 5.0;
+            sensor = AdaptiveAutocrossDriverStepTest.makeSensor(10.0);
+            sensor.PositionX = 75.0;
+            state = AdaptiveAutocrossDriverStepTest.makeState();
+            state.PreviousIndex = 76.0;
+            state.PreviousReferenceIndex = 76.0;
+            config = AdaptiveAutocrossDriverStepTest.makeConfig();
+
+            [command, ~, debug] = fsaeAdaptiveAutocrossDriverStep( ...
+                track, sensor, state, config);
+
+            testCase.verifyTrue(debug.PreviewBrakingActive);
+            testCase.verifyLessThan( ...
+                command.LongitudinalAccelerationRequest, 0.0);
+        end
+
+        function testDisabledPreviewBrakingPreservesPositiveDemand(testCase)
+            track = AdaptiveAutocrossDriverStepTest.makeTrack(true, 0.0);
+            track.ReferenceSpeed(17:end) = 5.0;
             sensor = AdaptiveAutocrossDriverStepTest.makeSensor(10.0);
             state = AdaptiveAutocrossDriverStepTest.makeState();
             config = AdaptiveAutocrossDriverStepTest.makeConfig();

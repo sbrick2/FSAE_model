@@ -46,6 +46,30 @@ classdef AdaptiveAutocrossRoutingTest < matlab.unittest.TestCase
                 routingCase.ControllerModel);
         end
 
+        function testAdaptiveControllerSharesDriverAndTireLimits( ...
+                testCase, routingCase)
+            cfg = createLapSimulationConfig();
+            cfg.Vehicle.DynamicsModel = routingCase.DynamicsModel;
+            cfg.Driver.LateralAccelerationLimit = 12.5;
+            scenario = createLapScenario(cfg);
+            parameters = AdaptiveAutocrossRoutingTest.readParameters();
+
+            in = createLapSimulationInput(scenario, parameters, cfg);
+
+            variables = in.Variables;
+            names = string({variables.Name});
+            yawLimit = variables(names == ...
+                "TorqueVectoringLateralAccelerationLimit").Value;
+            yawFriction = variables(names == ...
+                "TorqueVectoringFrictionEstimate").Value;
+            allocatorFriction = variables(names == ...
+                "UnifiedControlFrictionEstimate").Value;
+            testCase.verifyEqual(yawLimit, 12.5, AbsTol = 1.0e-12);
+            testCase.verifyEqual(yawFriction, allocatorFriction, AbsTol = 1.0e-12);
+            testCase.verifyGreaterThan(yawFriction, 1.0);
+            testCase.verifyLessThan(yawFriction, 3.0);
+        end
+
         function testAdaptiveTopModelUsesUnifiedController( ...
                 testCase, routingCase)
             topModel = routingCase.TopModel;

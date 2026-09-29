@@ -12,6 +12,8 @@ classdef FSAESimulationAppTest < matlab.uitest.TestCase
             addpath(fullfile(projectRoot, "scripts", "initialization"), ...
                 "-begin");
             addpath(fullfile(projectRoot, "scripts", "simulation"), "-begin");
+            testCase.applyFixture(matlab.unittest.fixtures.PathFixture( ...
+                fullfile(projectRoot, "tests", "helpers")));
             testCase.App = FSAESimulationApp( ...
                 ProjectRoot = projectRoot, Visible = "off");
             testCase.addTeardown(@() delete(testCase.App));
@@ -20,12 +22,12 @@ classdef FSAESimulationAppTest < matlab.uitest.TestCase
     end
 
     methods (Test)
-        function testThreeMainModules(testCase)
+        function testFourMainModules(testCase)
             titles = string({testCase.App.ModuleTabGroup.Children.Title});
 
-            testCase.verifyNumElements(titles, 3);
+            testCase.verifyNumElements(titles, 4);
             testCase.verifyTrue(all(ismember( ...
-                ["准静态", "时域闭环", "车辆参数"], titles)));
+                ["准静态", "时域闭环", "赛事回放", "车辆参数"], titles)));
             testCase.verifyEqual( ...
                 testCase.App.ModuleTabGroup.SelectedTab, ...
                 testCase.App.QuasiStaticModuleTab);
@@ -225,6 +227,82 @@ classdef FSAESimulationAppTest < matlab.uitest.TestCase
             testCase.verifyGreaterThan(height( ...
                 testCase.App.SummaryTable.Data), 2);
             testCase.verifyNotEmpty(testCase.App.TrackAxes.Children);
+        end
+
+        function testRaceReplayEntryAndCloseCleanup(testCase)
+            files = testCase.App.listResultFiles();
+            testCase.assumeNotEmpty(files, "项目中没有可用于回放测试的结果。");
+            testCase.App.loadResult(files(1));
+            testCase.chooseComponent(testCase.App.ModuleTabGroup, "时域闭环");
+            testCase.chooseComponent(testCase.App.TabGroup, "分析绘图");
+            testCase.pressComponent(testCase.App.RaceReplayButton);
+            replay = testCase.App.RaceReplayApp;
+            testCase.verifyClass(replay, "FSAERaceReplayApp");
+            testCase.verifyEqual(testCase.App.ModuleTabGroup.SelectedTab, testCase.App.RaceReplayTab);
+            testCase.verifyEqual(replay.UIFigure, testCase.App.UIFigure);
+            testCase.verifyEqual(ancestor(replay.View.MainAxes, "figure"), testCase.App.UIFigure);
+            testCase.verifyEqual(replay.View.MainAxes.InnerPosition(3), ...
+                replay.View.ScenePanel.Position(3) - 8, AbsTol = 1e-10);
+            testCase.verifyEqual(replay.View.MapAxes.Parent, replay.View.ScenePanel);
+            testCase.verifyEqual(replay.View.PedalAxes.Parent, replay.View.ScenePanel);
+            testCase.verifyLessThan(replay.View.MapAxes.InnerPosition(1), replay.View.PedalAxes.InnerPosition(1));
+            rootGrid = replay.View.Grid.Parent.Parent;
+            testCase.verifyEqual(rootGrid.Layout.Row, 1);
+            testCase.verifyNumElements(rootGrid.Parent.RowHeight, 1);
+            testCase.verifyNotEmpty(fieldnames(replay.Data.Track));
+            replayTimer = replay.PlaybackTimer;
+            close(testCase.App.UIFigure);
+            testCase.verifyFalse(isvalid(replayTimer));
+        end
+        function testReplayTabLoadsAndUpdatesCurrentResult(testCase)
+            fixture = testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture);
+            first = FSAESimulationAppTest.writeReplayResult(fixture.Folder, "first", 0, "autocross");
+            second = FSAESimulationAppTest.writeReplayResult(fixture.Folder, "second", 10, "skidpad");
+            testCase.App.loadResult(first);
+            testCase.chooseComponent(testCase.App.ModuleTabGroup, "赛事回放");
+            replay = testCase.App.RaceReplayApp;
+            testCase.verifySubstring(replay.Data.TrackSource, "autocross.mat");
+            replay.seek(0.5);
+            testCase.App.loadResult(second);
+            testCase.verifyEqual(testCase.App.RaceReplayApp, replay);
+            testCase.verifyEqual(replay.CurrentTime, 10);
+            testCase.verifyEqual(replay.Data.SourceFile, second);
+            testCase.verifySubstring(replay.Data.TrackSource, "skidpad.mat");
+            testCase.verifySubstring(string(testCase.App.RaceReplayResultLabel.Text), second);
+            testCase.verifyEqual(replay.View.MainAxes.InnerPosition(3), ...
+                replay.View.ScenePanel.Position(3) - 8, AbsTol = 1e-10);
+        end
+        function testLeavingReplayPausesAndRevisitKeepsTime(testCase)
+            fixture = testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture);
+            file = FSAESimulationAppTest.writeReplayResult(fixture.Folder, "pause", 0, "autocross");
+            testCase.App.loadResult(file);
+            testCase.chooseComponent(testCase.App.ModuleTabGroup, "赛事回放");
+            replay = testCase.App.RaceReplayApp;
+            replay.seek(0.5);
+            replay.play();
+            testCase.chooseComponent(testCase.App.ModuleTabGroup, "准静态");
+            testCase.verifyEqual(replay.State, "Paused");
+            time = replay.CurrentTime;
+            testCase.chooseComponent(testCase.App.ModuleTabGroup, "赛事回放");
+            testCase.verifyEqual(replay.CurrentTime, time);
+        end
+
+        function testResultChangeDuringReplayExportIsRejected(testCase)
+            fixture = testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture);
+            first = FSAESimulationAppTest.writeReplayResult(fixture.Folder, "export_first", 0, "autocross");
+            second = FSAESimulationAppTest.writeReplayResult(fixture.Folder, "export_second", 10, "skidpad");
+            testCase.App.loadResult(first);
+            testCase.chooseComponent(testCase.App.ModuleTabGroup, "赛事回放");
+            replay = testCase.App.RaceReplayApp;
+
+            report = replay.exportVideo(string(fullfile(fixture.Folder, "locked.mp4")), ...
+                TimeRange = [0, 0], Resolution = [1280, 720], ShowProgress = false, ...
+                ProgressFcn = @(~) testCase.verifyError(@() testCase.App.loadResult(second), ...
+                    "FSAE:App:ReplayBusy"));
+
+            testCase.verifyFalse(report.Cancelled);
+            testCase.verifyEqual(replay.State, "Paused");
+            testCase.verifyEqual(replay.Data.SourceFile, first);
         end
 
         function testRendersTimeAnalysisInsideApp(testCase)
@@ -726,8 +804,7 @@ classdef FSAESimulationAppTest < matlab.uitest.TestCase
 
         function testCloseRequestClosesWindow(testCase)
             figureHandle = testCase.App.UIFigure;
-            closeCallback = figureHandle.CloseRequestFcn;
-            closeCallback(figureHandle, []);
+            close(figureHandle);
             drawnow;
 
             testCase.verifyFalse(isvalid(figureHandle));
@@ -759,7 +836,10 @@ classdef FSAESimulationAppTest < matlab.uitest.TestCase
                 index = find(titles == string(selection), 1);
                 assert(~isempty(index), "FSAE:Test:UnknownTab", ...
                     "找不到标签页：%s。", string(selection));
+                previousTab = component.SelectedTab;
                 component.SelectedTab = component.Children(index);
+                testCase.invokeComponentCallback(component.SelectionChangedFcn, component, ...
+                    struct("OldValue", previousTab, "NewValue", component.SelectedTab));
             elseif isa(component, "matlab.ui.control.Table")
                 event = struct("Indices", selection);
                 testCase.invokeComponentCallback( ...
@@ -807,6 +887,17 @@ classdef FSAESimulationAppTest < matlab.uitest.TestCase
             else
                 feval(callback{1}, source, event, callback{2:end});
             end
+        end
+    end
+    methods (Static, Access = private)
+        function file = writeReplayResult(folder, name, offset, event)
+            result = createRaceReplayTestResult();
+            result.Time = result.Time + offset;
+            result.Meta.Replay.Track = struct;
+            result.Meta.Event = event;
+            result.Config.Track = struct("Name", event, "DataFolder", "");
+            file = string(fullfile(folder, name + ".mat"));
+            save(file, "result");
         end
     end
 end

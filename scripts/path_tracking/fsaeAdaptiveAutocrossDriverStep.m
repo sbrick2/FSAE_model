@@ -235,8 +235,16 @@ unsaturatedAcceleration = feedforwardGain * ...
     config.SpeedKp * speedError + ...
     integratorForControl;
 if previewBrakingActive
+    % Ramp braking with excess speed above the reachable preview envelope.
+    % A full brake step at its boundary causes unnecessary speed undershoot.
+    previewDecelerationLimit = min(config.MaximumDeceleration, ...
+        config.PlanningDeceleration * ...
+        config.PreviewBrakingDecelerationScale);
+    previewSpeedLimit = sqrt(previewBrakingTargetSpeed^2 + ...
+        2.0 * previewDecelerationLimit * previewBrakingDistance);
+    previewSpeedError = max(0.0, speedMagnitude - previewSpeedLimit);
     previewBrakeCommand = -config.PreviewBrakeFeedforwardGain * ...
-        previewBrakingDeceleration;
+        min(previewBrakingDeceleration, config.SpeedKp * previewSpeedError);
     unsaturatedAcceleration = min(unsaturatedAcceleration, ...
         previewBrakeCommand);
 end
@@ -414,6 +422,13 @@ previewCount = min(255, ceil(previewDistance / previewStep));
 decelerationLimit = min(double(config.MaximumDeceleration), ...
     double(config.PlanningDeceleration) * ...
     double(config.PreviewBrakingDecelerationScale));
+% Closed geometry can carry a single-pass, standing-start speed profile.
+% Do not wrap its start-up speed into a false stop target after the finish.
+% A cyclic profile must have a physically reachable speed across its seam.
+seamSpeedDifference = abs(double(trackData.ReferenceSpeed(1))^2 - ...
+    double(trackData.ReferenceSpeed(sampleCount))^2);
+previewIsClosed = isClosed && seamSpeedDifference <= ...
+    2.0 * max(decelerationLimit, 0.0) * double(sampleDistance);
 for previewIndex = 1:255
     if previewIndex > previewCount
         break
@@ -421,8 +436,8 @@ for previewIndex = 1:255
     distanceAhead = min(double(previewIndex) * previewStep, ...
         previewDistance);
     [sampleIndex, sampleFraction] = offsetCoordinate(baseIndex, ...
-        baseFraction, distanceAhead, sampleDistance, sampleCount, isClosed);
-    nextIndex = adjacentIndex(sampleIndex + 1, sampleCount, isClosed);
+        baseFraction, distanceAhead, sampleDistance, sampleCount, previewIsClosed);
+    nextIndex = adjacentIndex(sampleIndex + 1, sampleCount, previewIsClosed);
     candidateSpeed = interpolateLinear( ...
         trackData.ReferenceSpeed(sampleIndex), ...
         trackData.ReferenceSpeed(nextIndex), sampleFraction);
@@ -436,13 +451,16 @@ for previewIndex = 1:255
             targetSpeed = candidateSpeed;
         end
     end
-    if ~isClosed && sampleIndex >= sampleCount
+    if ~previewIsClosed && sampleIndex >= sampleCount
         break
     end
 end
+% Start braking at the planned braking envelope. A lower speed somewhere
+% ahead does not require braking while enough stopping distance remains.
+active = decelerationLimit > 1.0e-9 && ...
+    deceleration >= decelerationLimit;
 deceleration = min(max(deceleration, 0.0), ...
     max(decelerationLimit, 0.0));
-active = deceleration > 1.0e-9;
 end
 
 function [clearance, correctionSign] = ...
